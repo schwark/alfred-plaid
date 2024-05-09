@@ -1,0 +1,83 @@
+<html>
+<!--=================================================
+    STYLES AND PAGE INSTRUCTIONS. IGNORE THIS STUFF
+    =================================================-->
+<head>
+  <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.10.5/dist/full.min.css" rel="stylesheet" type="text/css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .outer { justify-self: center; margin: 20% auto 120px auto; width: 60%; ; font-family: 'Roboto', sans-serif;} a { text-decoration: underline; } li { padding-left: 1rem;}
+    #showtoken {visibility: hidden;}
+  </style>
+</head>
+<body style="background-color:#B1EEFC;">
+  <div id="showtoken" role="alert" class="alert alert-success">
+    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+    <span id="token">Public Token will show here</span>
+  </div>
+    <div class="outeh">
+      <div class="hero min-h-screen" style="background-image: url(https://img.daisyui.com/images/stock/photo-1507358522600-9f71e620c44e.jpg);">
+        <div class="hero-overlay bg-opacity-60"></div>
+        <div class="hero-content flex-col lg:flex-row">
+          <img src="https://img.daisyui.com/images/stock/photo-1635805737707-575885ab0820.jpg" class="max-w-sm rounded-lg shadow-2xl" />
+          <div>
+            <h1 class="text-5xl font-bold">Link Account to Alfred via Plaid</h1>
+            <p class="py-6">Click on the link below to link a bank, card or other account to Alfred via Plaid. A popup will guide you through the process.</p>
+            <button id="link-button" class="btn btn-active btn-accent">
+              Link Account
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+<!--=================================================
+    PLAID SCRIPTS. HERE'S THE STUFF YOU'LL EDIT!
+    =================================================-->
+  <script type="text/javascript">
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+  <script type="text/javascript">
+  (function($) {
+    function getParams() {
+      var url = window.location.href;
+      var query = url.split('?')[1];
+      var vars = query.split('&');
+      var params = {}
+      for (var i = 0; i < vars.length; i++) {
+          var pair = vars[i].split('=');
+          params[pair[0]] = decodeURIComponent(pair[1]);
+      }
+      return params
+  }
+  var params = getParams()
+
+  $( document ).ready(function() {
+    if(params['completed'] == 'true') {
+      $('#token').html('Public Token is '+params['public_token'])
+      $('#showtoken').show()
+    }
+  });
+
+    var handler = Plaid.create({
+      token: params['link_token'],
+      onSuccess: function(public_token, metadata) {
+        console.log('public token is:', public_token);
+        console.log('metadata is:', metadata);
+        window.location.href = window.location.href+'&public_token='+public_token+'&completed=true'
+      },
+      onExit: function(err, metadata) {
+        console.log('onexit invoked');
+      },
+      onEvent: function(eventName, metadata) {
+        console.log('event name is:', eventName);
+      }
+    });
+    $('#link-button').on('click', function(e) { handler.open() });
+  })(jQuery);
+  </script>
+</body>
+</html>
