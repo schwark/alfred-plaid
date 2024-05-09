@@ -1862,7 +1862,7 @@ class Workflow:
             return
 
         if isinstance(data, str):
-            data = bytearray(data)
+            data = bytearray(data, 'utf-8')
 
         # Ensure write is not interrupted by SIGTERM
         @uninterruptible

@@ -119,9 +119,15 @@ def main(wf):
             wf.save_password('plaid_acct_id', '')
             qnotify('Plaid', 'Account Filter Removed')
         elif args.acctid in accounts:
+            try:
+                acct_id = wf.get_password('plaid_acct_id')
+            except:
+                acct_id = ''
             # save the key
-            wf.save_password('plaid_acct_id', args.acctid)
-            qnotify('Plaid', 'Account Filter: '+accounts[args.acctid]['name'])
+            acct_id = ' '.join(acct_id.split().extend([args.acctid]))
+            wf.save_password('plaid_acct_id', acct_id)
+            name = ','.join([accounts[x]['name'] for x in acct_id.split()])
+            qnotify('Plaid', 'Account Filter: '+name)
         else:
             qnotify('Plaid', 'Account Filter Failed')
         return 0  # 0 means script exited cleanly
@@ -146,8 +152,8 @@ def main(wf):
     if args.environment:  # Script was passed an Hub ID
         log.debug("saving environment "+args.environment)
         # save the key
-        wf.store_data('plaid_environment', args.environment)
-        qnotify('Plaid', 'Environment Saved')
+        wf.store_data('plaid_environment', str(args.environment))
+        qnotify('Plaid', f"Environment is {args.environment}")
         return 0  # 0 means script exited cleanly
 
     ####################################################################

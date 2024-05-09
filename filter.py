@@ -10,6 +10,7 @@ import os.path
 from dateutil.parser import parse 
 
 log = None
+environments = ['development', 'sandbox', 'production']
 
 def get_acct_subtitle(acct):
     result = ''
@@ -85,104 +86,7 @@ def main(wf):
 
     log.debug("args are "+str(args))
 
-    words = args.query.split(' ') if args.query else []
-
-    # list of commands
-    commands = {
-        'status': {
-            'capability': 'global'
-        },
-        'on': {
-                'component': 'main',
-                'capability': 'Switch',
-                'command': 'on'
-        }, 
-        'off': {
-                'component': 'main',
-                'capability': 'Switch',
-                'command': 'off'
-        },
-        'toggle': {
-                'component': 'main',
-                'capability': 'Switch',
-                'command': 'off'
-        },
-        'dim': {
-                'component': 'main',
-                'capability': 'SwitchLevel',
-                'command': 'setLevel',
-                'arguments': [
-                    lambda: int(args.device_params[0]),
-                ]
-        },
-        'slevel': {
-                'component': 'main',
-                'capability': 'WindowShadeLevel',
-                'command': 'setShadeLevel',
-                'arguments': [
-                    lambda: int(args.device_params[0]),
-                ]
-        },
-        'open': {
-                'component': 'main',
-                'capability': 'WindowShade',
-                'command': 'open'
-        },
-        'close': {
-                'component': 'main',
-                'capability': 'WindowShade',
-                'command': 'close'
-        },
-        'lock': {
-                'component': 'main',
-                'capability': 'Lock',
-                'command': 'lock'
-        }, 
-        'unlock': {
-                'component': 'main',
-                'capability': 'Lock',
-                'command': 'unlock'
-        },
-        'view': {
-                'component': 'main',
-                'capability': 'ContactSensor',
-                'command': 'view'
-        },
-        'color': {
-                'component': 'main',
-                'capability': 'ColorControl',
-                'command': 'setColor',
-                'arguments': [
-                    {
-                        'hex': lambda: get_color(args.device_params[0], colors)
-                    }
-                ]
-        },
-        'mode': {
-            'component': 'main',
-            'capability': 'Thermostat',
-            'command': 'setThermostatMode',
-            'arguments': [
-                lambda: str(args.device_params[0])
-            ]
-        },
-        'heat': {
-                'component': 'main',
-                'capability': 'Thermostat',
-                'command': 'setHeatingSetpoint',
-                'arguments': [
-                    lambda: int(args.device_params[0]),
-                ]
-        },
-        'cool': {
-                'component': 'main',
-                'capability': 'Thermostat',
-                'command': 'setCoolingSetpoint',
-                'arguments': [
-                    lambda: int(args.device_params[0]),
-                ]
-        }
-    }
+    words = args.query.split() if args.query else []
 
     config_commands = {
         'link': {
@@ -244,10 +148,18 @@ def main(wf):
         'env': {
             'title': 'Set Environment',
             'subtitle': 'Set environment for Plaid',
-            'autocomplete': 'env',
+            'autocomplete': 'env ',
             'args': ' --environment '+(words[1] if len(words)>1 else ''),
             'icon': ICON_WEB,
-            'valid': len(words) > 1 and words[1] in ['sandbox', 'development', 'production']
+            'valid': len(words) > 1 and words[1] in environments
+        },
+        'act': {
+            'title': 'Add an Account Filter',
+            'subtitle': 'Filter results to certain accounts',
+            'autocomplete': 'act:',
+            'args': ' --acctid '+(words[1] if len(words)>1 else ''),
+            'icon': ICON_WEB,
+            'valid': False
         },
         'reinit': {
             'title': 'Reinitialize the workflow',
@@ -284,7 +196,6 @@ def main(wf):
 
     environ = get_stored_data(wf, 'plaid_environment')
     environ = DEFAULT_ENV if not environ else environ
-    items = get_password(wf, 'plaid_items')
 
     try:
         client_id = wf.get_password('plaid_client_id')
@@ -316,12 +227,8 @@ def main(wf):
         wf.send_feedback()
         return 0
 
-    # since this i now sure to be a device/scene query, fix args if there is a device/scene command in there
-    args = extract_commands(wf, args, commands)
- 
     # update query post extraction
     query = args.query
-
 
     ####################################################################
     # View/filter devices or scenes
@@ -350,8 +257,20 @@ def main(wf):
 
     # If script was passed a query, use it to filter posts
     if query:
-        if ':act' in query:
-            query = query.replace(':act','').strip().lower()
+        if 'env ' in query:
+            query = query.replace('env','').strip().lower()
+            list = wf.filter(query, environments)
+            for env in list:
+                wf.add_item(
+                            title=env,
+                            subtitle=f"Set environment to {env}",
+                            autocomplete=f"env {env}",
+                            arg=' --environment '+env,
+                            valid=True,
+                            icon=ICON_WEB
+                    )                
+        elif 'act:' in query:
+            query = query.replace('act:','').strip().lower()
             list = wf.filter(query, accounts.values(), lambda x: f"{x['name']} {x['subtype']}")
             if not list:
                     wf.add_item(
