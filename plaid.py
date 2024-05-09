@@ -55,9 +55,9 @@ class Plaid:
             return None
         
     def get_institution_by_id(self, institution_id):
-        data = {'institution_id': institution_id, 'country_codes': ['US']}
+        data = {'institution_id': institution_id, 'country_codes': ['US'], 'include_optional_metadata': True}
         result = self.api(path="/institutions/get_by_id", data=data)
-        return result['name'] if 'name' in result else None
+        return result
 
     def exchange_public_token(self, public_token):
         data = {"public_token": public_token}
@@ -74,6 +74,7 @@ class Plaid:
                 banks[result['item']['institution_id']] = bank
             else:
                 bank = banks[result['item']['institution_id']]
+            if bank: ensure_icon(bank['name'],'bank',bank['logo'] if 'logo' in bank else None)
         if 'accounts' in result:
             if bank:
                 for i in range(len(result['accounts'])):

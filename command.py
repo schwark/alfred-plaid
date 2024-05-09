@@ -59,6 +59,7 @@ def main(wf):
     parser.add_argument('--userid', dest='userid', nargs='?', default=None)
     parser.add_argument('--pubtoken', dest='pubtoken', nargs='?', default=None)
     parser.add_argument('--environment', dest='environment', nargs='?', default=None)
+    parser.add_argument('--acctid', dest='acctid', nargs='?', default=None)
     # add an optional (nargs='?') --update argument and save its
     # value to 'apikey' (dest). This will be called from a separate "Run Script"
     # action with the API key
@@ -109,6 +110,19 @@ def main(wf):
         # save the key
         wf.save_password('plaid_client_id', args.clientid)
         qnotify('Plaid', 'Client ID Saved')
+        return 0  # 0 means script exited cleanly
+
+    if args.acctid:  # Script was passed an API key
+        log.debug("saving filtered account id "+args.acctid)
+        accounts = get_stored_data(wf, 'accounts', {})
+        if 'all' == args.acctid:
+            wf.save_password('plaid_acct_id', '')
+        elif args.acctid in accounts:
+            # save the key
+            wf.save_password('plaid_acct_id', args.acctid)
+            qnotify('Plaid', 'Account Filter: '+accounts[args.acctid]['name'])
+        else:
+            qnotify('Plaid', 'Account Filter Failed')
         return 0  # 0 means script exited cleanly
 
     # save User ID if that is passed in

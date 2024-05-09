@@ -107,9 +107,10 @@ class TxnDB:
         dtt = f" AND post <= :dtt" if date_to else ''
         amtf = f" AND amount >= :amtf" if amt_from else ''
         amtt = f" AND amount <= :amtt" if amt_to else ''
-        query = ' '.join([x+'*' for x in query.split(' ')])
+        query = ' '.join([x+'*' if ':' not in x else '' for x in query.strip().split()])
         params = {'query': query, 'amtt': amt_to, 'amtf': amt_from, 'dtt': date_to, 'dtf': date_from, 'srt': sort, 'ord': order}
         self.debug(params)
+        if not query: return None
             
         # Search!
         start = time()

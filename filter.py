@@ -11,6 +11,26 @@ from dateutil.parser import parse
 
 log = None
 
+def get_acct_subtitle(acct):
+    result = ''
+    if 'subtype' in acct:
+        result = f"{result}{acct['subtype']}   "
+    if 'balances' in acct:
+        if 'available' in acct['balances'] and acct['balances']['available']:
+            result = f"{result}|   available: ${acct['balances']['available']:,.2f}   "
+        if 'current' in acct['balances'] and acct['balances']['current']:
+            result = f"{result}|   current: ${acct['balances']['current']:,.2f}   "
+        if 'limit' in acct['balances'] and acct['balances']['limit']:
+            result = f"{result}|   limit: ${acct['balances']['limit']:,.2f} "
+    return result
+
+def get_bank_icon(account, banks):
+    if not 'institution_id' in account or account['institution_id'] not in banks: return None
+    bank = banks[account['institution_id']]
+    name = bank['name']
+    logo = bank['logo']
+    return ensure_icon(name, 'bank', logo)
+
 def get_category_icon(category):
     l = category.lower().split(',')
     for i in range(1,len(l)+1):
@@ -330,28 +350,58 @@ def main(wf):
 
     # If script was passed a query, use it to filter posts
     if query:
-        db = TxnDB(DB_FILE, wf.logger)
-        txns = db.get_results(query)
-        if not txns:
-            wf.add_item(
-                    title="No matching transactions found...",
-                    subtitle="Please try another search term",
-                    arg="",
-                    valid=True,
-                    icon=ICON_INFO
-            )
-        else:
-            for txn in txns:
-                post = parse(txn['post']).strftime('%Y-%m-%d')
-                merchant = txn['merchant'] if txn['merchant'] else txn['txntext']
-                merchant = merchant.ljust(50)
+        if ':act' in query:
+            query = query.replace(':act','').strip().lower()
+            list = wf.filter(query, accounts.values(), lambda x: f"{x['name']} {x['subtype']}")
+            if not list:
+                    wf.add_item(
+                            title="No matching accounts found...",
+                            subtitle="Please try another search term",
+                            arg="",
+                            valid=True,
+                            icon=ICON_INFO
+                    )
+            else:
                 wf.add_item(
-                        title=f"{post}   {merchant}   ${txn['amount']:.2f}",
-                        subtitle=f"{txn['categories']}   {txn['txntext']}",
-                        arg=' --txnid '+txn['transaction_id'],
+                            title="All Accounts",
+                            subtitle="Remove account filter - set to all accounts",
+                            arg=' --acctid all',
+                            valid=True,
+                            icon=ICON_COLOR
+                )   
+                log.debug(list)             
+                for acct in list:
+                    name = acct['name'] if 'name' in acct and acct['name'] else acct['official_name']
+                    wf.add_item(
+                                title=name,
+                                subtitle=get_acct_subtitle(acct),
+                                arg=' --acctid '+acct['account_id'],
+                                valid=True,
+                                icon=get_bank_icon(acct, banks)
+                        )                
+        else:
+            db = TxnDB(DB_FILE, wf.logger)
+            txns = db.get_results(query)
+            if not txns:
+                wf.add_item(
+                        title="No matching transactions found...",
+                        subtitle="Please try another search term",
+                        arg="",
                         valid=True,
-                        icon=get_txn_icon(txn, accounts, banks, merchants, categories)
+                        icon=ICON_INFO
                 )
+            else:
+                for txn in txns:
+                    post = parse(txn['post']).strftime('%Y-%m-%d')
+                    merchant = txn['merchant'] if txn['merchant'] else txn['txntext']
+                    merchant = merchant.ljust(50)
+                    wf.add_item(
+                            title=f"{post}   {merchant}   ${txn['amount']:.2f}",
+                            subtitle=f"{txn['categories']}   {txn['txntext']}",
+                            arg=' --txnid '+txn['transaction_id'],
+                            valid=True,
+                            icon=get_txn_icon(txn, accounts, banks, merchants, categories)
+                    )
 
         # Send the results to Alfred as XML
         wf.send_feedback()
