@@ -20,7 +20,7 @@ def get_acct_subtitle(acct):
         if 'available' in acct['balances'] and acct['balances']['available']:
             result = f"{result}|   available: ${acct['balances']['available']:,.2f}   "
         if 'current' in acct['balances'] and acct['balances']['current']:
-            result = f"{result}|   current: ${acct['balances']['current']:,.2f}   "
+            result = f"{result}|   balance: ${acct['balances']['current']:,.2f}   "
         if 'limit' in acct['balances'] and acct['balances']['limit']:
             result = f"{result}|   limit: ${acct['balances']['limit']:,.2f} "
     return result
@@ -37,6 +37,7 @@ def get_category_icon(category):
     for i in range(1,len(l)+1):
         cats = [l[-i], l[-i][:-1]]
         for cat in cats:
+            cat = cat.replace(' ','')
             icon = f'icons/category/{cat}.png'
             if os.path.exists(icon):
                 return icon    
@@ -48,15 +49,14 @@ def get_txn_icon(txn, accounts, banks, merchants, categories):
         bank = bank['name'].lower().replace(' ','')
     else:
         bank = None
-    category = txn['categories'].split(',')[-1]
     merchant = txn['merchant']
     merchant_url = merchants[txn['merchant_entity_id']]['icon'] if 'merchant_entity_id' in txn and txn['merchant_entity_id'] and txn['merchant_entity_id'] in merchants else None
     micon = ensure_icon(merchant, 'merchant', merchant_url)
-    bicon = ensure_icon(bank, 'bank')
     category_url = categories[txn['category_id']]['icon'] if 'category_id' in txn and txn['category_id'] and txn['category_id'] in categories else None
-    caticon = ensure_icon(txn['category_id'], 'category', category_url)
-    cicon = get_category_icon(category)
-    icon = micon if micon else (caticon if caticon else cicon if cicon else bicon)
+    cicon = get_category_icon(txn['categories'])
+    caticon = ensure_icon(txn['category_id'], 'category', category_url) if not cicon else None
+    bicon = ensure_icon(bank, 'bank') if not cicon and not caticon else None
+    icon = micon if micon else (cicon if cicon else caticon if caticon else bicon)
     return icon
 
 def add_config_commands(args, config_commands):

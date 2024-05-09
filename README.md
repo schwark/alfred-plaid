@@ -30,7 +30,28 @@ This should only be needed once per install or after a reinit
 ```
 pd update
 ```
-This should be needed once a day or as needed
+This should be needed once a day or as needed - this updates the local cache of all the transactions
+
+## Account Details and Filtering
+
+```
+pd act:
+```
+This gives the list of accounts and balances, and selecting any of them also filters all further queries to that account. Mulitple accounts can be filtered on, by selecting more than one consecutively. Selecting "All Accounts" will reset account fltering
+
+## Environment Selection
+
+```
+pd env
+```
+The environment should be set to production, but using Sandbox will allow you to test this with dummy accounts.
+
+## Basic Transaction queries
+
+```
+pd <search-term> <dtf:from-date?> <dtt:to-date?> <amtt:to-amount?> <amtf:from-amount?>
+```
+The search term is the only required entry, further filtering is possible by using dtf:<from-date> etc. All those additional fiters are optional.
 
 
 ## Reinitialize
