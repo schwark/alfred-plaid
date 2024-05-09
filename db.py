@@ -90,6 +90,8 @@ class TxnDB:
                 result = parse(result)
             elif('number' == type):
                 result = int(result)
+            elif('text' == type):
+                pass
         return query,result
     
     def get_results(self, query):
@@ -97,12 +99,16 @@ class TxnDB:
         query, date_to = self.extract_filter(query, 'dtt', 'date')
         query, amt_from = self.extract_filter(query, 'amtf', 'number')
         query, amt_to = self.extract_filter(query, 'amtt', 'number')
+        query, sort = self.extract_filter(query, 'srt', 'text')
+        query, order = self.extract_filter(query, 'ord', 'text')
+        sort = sort if sort else 'post'
+        order = order if order else 'DESC'
         dtf = f" AND post >= :dtf" if date_from else ''
         dtt = f" AND post <= :dtt" if date_to else ''
         amtf = f" AND amount >= :amtf" if amt_from else ''
         amtt = f" AND amount <= :amtt" if amt_to else ''
         query = ' '.join([x+'*' for x in query.split(' ')])
-        params = {'query': query, 'amtt': amt_to, 'amtf': amt_from, 'dtt': date_to, 'dtf': date_from}
+        params = {'query': query, 'amtt': amt_to, 'amtf': amt_from, 'dtt': date_to, 'dtf': date_from, 'srt': sort, 'ord': order}
         self.debug(params)
             
         # Search!
@@ -120,7 +126,7 @@ class TxnDB:
             sql = f"""
                     SELECT transaction_id, account_id, txntext, subtype, merchant, post, currency, amount, category_id, categories 
                     FROM transactions 
-                    WHERE id IN (SELECT rowid from txn_fts WHERE txn_fts MATCH :query ORDER BY rank DESC){dtt}{dtf}{amtt}{amtf}"""
+                    WHERE id IN (SELECT rowid from txn_fts WHERE txn_fts MATCH :query ORDER BY rank DESC){dtt}{dtf}{amtt}{amtf} ORDER BY {sort} {order}"""
             self.debug(sql)
             cursor.execute(sql, params, )
             results = cursor.fetchall()

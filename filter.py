@@ -332,15 +332,26 @@ def main(wf):
     if query:
         db = TxnDB(DB_FILE, wf.logger)
         txns = db.get_results(query)
-        for txn in txns:
-            post = parse(txn['post']).strftime('%Y-%m-%d')
+        if not txns:
             wf.add_item(
-                    title=f"{post}   {txn['merchant']}       ${txn['amount']:.2f}",
-                    subtitle=f"{txn['categories']}   {txn['txntext']}",
-                    arg=' --txnid '+txn['transaction_id'],
+                    title="No matching transactions found...",
+                    subtitle="Please try another search term",
+                    arg="",
                     valid=True,
-                    icon=get_txn_icon(txn, accounts, banks, merchants, categories)
+                    icon=ICON_INFO
             )
+        else:
+            for txn in txns:
+                post = parse(txn['post']).strftime('%Y-%m-%d')
+                merchant = txn['merchant'] if txn['merchant'] else txn['txntext']
+                merchant = merchant.ljust(50)
+                wf.add_item(
+                        title=f"{post}   {merchant}   ${txn['amount']:.2f}",
+                        subtitle=f"{txn['categories']}   {txn['txntext']}",
+                        arg=' --txnid '+txn['transaction_id'],
+                        valid=True,
+                        icon=get_txn_icon(txn, accounts, banks, merchants, categories)
+                )
 
         # Send the results to Alfred as XML
         wf.send_feedback()
