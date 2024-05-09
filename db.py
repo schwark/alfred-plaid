@@ -101,14 +101,16 @@ class TxnDB:
         query, amt_to = self.extract_filter(query, 'amtt', 'number')
         query, sort = self.extract_filter(query, 'srt', 'text')
         query, order = self.extract_filter(query, 'ord', 'text')
+        query, acct = self.extract_filter(query, 'act', 'text')
         sort = sort if sort else 'post'
         order = order if order else 'DESC'
         dtf = f" AND post >= :dtf" if date_from else ''
         dtt = f" AND post <= :dtt" if date_to else ''
         amtf = f" AND amount >= :amtf" if amt_from else ''
         amtt = f" AND amount <= :amtt" if amt_to else ''
+        acctq = f" AND account_id = :acct" if acct else ''
         query = ' '.join([x+'*' if ':' not in x else '' for x in query.strip().split()])
-        params = {'query': query, 'amtt': amt_to, 'amtf': amt_from, 'dtt': date_to, 'dtf': date_from, 'srt': sort, 'ord': order}
+        params = {'query': query, 'amtt': amt_to, 'amtf': amt_from, 'dtt': date_to, 'dtf': date_from, 'srt': sort, 'ord': order, 'acct': acct}
         self.debug(params)
         if not query: return None
             
@@ -127,7 +129,7 @@ class TxnDB:
             sql = f"""
                     SELECT transaction_id, account_id, txntext, subtype, merchant, post, currency, amount, category_id, categories 
                     FROM transactions 
-                    WHERE id IN (SELECT rowid from txn_fts WHERE txn_fts MATCH :query ORDER BY rank DESC){dtt}{dtf}{amtt}{amtf} ORDER BY {sort} {order}"""
+                    WHERE id IN (SELECT rowid from txn_fts WHERE txn_fts MATCH :query ORDER BY rank DESC){dtt}{dtf}{amtt}{amtf}{acctq} ORDER BY {sort} {order}"""
             self.debug(sql)
             cursor.execute(sql, params, )
             results = cursor.fetchall()

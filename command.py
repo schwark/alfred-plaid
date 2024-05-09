@@ -117,6 +117,7 @@ def main(wf):
         accounts = get_stored_data(wf, 'accounts', {})
         if 'all' == args.acctid:
             wf.save_password('plaid_acct_id', '')
+            qnotify('Plaid', 'Account Filter Removed')
         elif args.acctid in accounts:
             # save the key
             wf.save_password('plaid_acct_id', args.acctid)

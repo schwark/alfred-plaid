@@ -381,6 +381,11 @@ def main(wf):
                         )                
         else:
             db = TxnDB(DB_FILE, wf.logger)
+            try:
+                acct_id = wf.get_password('plaid_acct_id')
+            except:
+                acct_id = None
+            if acct_id: query = f"{query} act:{acct_id}"
             txns = db.get_results(query)
             if not txns:
                 wf.add_item(
