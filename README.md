@@ -49,10 +49,20 @@ The environment should be set to production, but using Sandbox will allow you to
 ## Basic Transaction queries
 
 ```
-pd <dt:(this|last)-(week|month|quarter|year)?> <dtf:from-date?> <dtt:to-date?> <amtt:to-amount?> <amtf:from-amount?> <search-term> 
+pd <dt:(this|last)-(week|month|quarter|year)?> <dtf:from-date?> <dtt:to-date?> <amtt:to-amount?> <amtf:from-amount?> <cp:p(ie)|b(ar)|l(ine)> <ta:d(ay)|w(eek)|m(onth)> <ma:m(erchant)|c(ategory)> <search-term> 
 ```
-The search term is the only required entry, further filtering is possible by using dtf:<from-date> etc. All those additional fiters are optional.
+The search term is the only required entry, further filtering is possible by using modifiers. All those additional fiters are optional.
 
+```
+dtf:<from-date>         transactions on or after this date
+dtt:<to-date>           transactions on or before this date
+amtt:<to-amount>        transactions with amounts less than or equal to this amount
+amtf:<from-amount>      transactions with amounts greater than or equal to this amount
+dt:<last-month>         a shortcut way of specifying dtf and dtt for some commons scenarios
+cp:<p|b|l>              choose a chart type from pie, bar or line
+ta:<d|w|m>              choose periods to chart over from day, week or month
+ma:<m|c>                choose a charting segment to total over from merchant or category for each transaction
+```
 
 ## Reinitialize
 

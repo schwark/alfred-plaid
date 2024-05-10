@@ -8,10 +8,56 @@ from common import get_stored_data, DEFAULT_ENV, DB_FILE, get_password, ensure_i
 from db import TxnDB
 import os.path
 from dateutil.parser import parse 
+from datetime import datetime, timedelta
 import re
+import json
 
 log = None
 environments = ['development', 'sandbox', 'production']
+chart_types = {'p': 'pie', 'l': 'line', 'b': 'bar'}
+time_aggregates = {'a': 'all', 'd': 'day', 'w': 'week', 'm': 'month'}
+merchant_aggregates = {'m': 'merchant', 'c': 'category'}
+
+def get_time_cut(dt, type):
+    if 'a' == type: return 'all'
+    if 'd' == type: return dt.strftime('%Y-%m-%d')
+    if 'w' == type: return (dt - timedelta(days=dt.isoweekday() % 7)).strftime('%Y-%m-%d')
+    if 'm' == type: return dt.replace(day=1,hour=0,minute=0,second=0).strftime('%Y-%m')
+
+def create_chart(txns, ct, ta, ma):
+    data = {}
+    lines = ['Total'] if 'p' != ct else []
+    for txn in txns:
+        time_cut = get_time_cut(parse(txn['post']), ta)
+        data[time_cut] = data[time_cut] if time_cut in data else {}
+        merchant_cut = txn['merchant'] if 'm' == ma else (txn['categories'].split(',')[0] if 'categories' in txn else 'other')
+        data[time_cut][merchant_cut] = data[time_cut][merchant_cut]+txn['amount'] if merchant_cut in data[time_cut] else txn['amount']
+        if merchant_cut not in lines: lines.append(merchant_cut)
+        if 'p' != ct:
+            data[time_cut]['Total'] = data[time_cut]['Total']+txn['amount'] if 'Total' in data[time_cut] else txn['amount']
+    chart = {}
+    chart['type'] = chart_types[ct]
+    chart['data'] = {}
+    chart['data']['labels'] = list(data.keys()) if 'p' != ct else lines
+    chart['data']['datasets'] = []
+    if 'p' != ct:
+        values = {}
+        for cut in data:
+            for mcut in lines:
+                values[mcut] = values[mcut] if mcut in values else []
+                values[mcut].append(data[cut][mcut] if mcut in data[cut] else 0)
+        for mcut in values:
+            chart['data']['datasets'].append({'label': mcut, 'data': values[mcut]})
+    else:
+        chart['data']['datasets'].append({'data': list(data['all'].values())})
+    log.debug(chart)
+    return chart
+         
+def get_chart_url(txns, ct, ta, ma):
+    chart = create_chart(txns, ct, ta, ma)
+    url = f"https://quickchart.io/chart?width=500&height=300&chart={json.dumps(chart, separators=(',', ':'))}"
+    log.debug(url)
+    return url
 
 def get_acct_subtitle(acct):
     result = ''
@@ -282,6 +328,23 @@ def main(wf):
 
     # If script was passed a query, use it to filter posts
     if query:
+        ta = 'm' # time aggregation
+        ma = 'm' # merchant/category aggregation
+        ct = 'b' # chart type
+        if 'ct:' in query:
+            found = re.compile('ct\:([^\s]+)').search(query)
+            ct = found.group(1) if found and found.group(1) in chart_types else ct
+            if found and 'p' == found.group(1): ta = 'a'
+            query = re.sub(r'ct:[^\s]*','', query)
+        if 'ta:' in query:
+            found = re.compile('ta\:([^\s]+)').search(query)
+            if found and 'a' == found.group(1): ct = 'p'
+            ta = found.group(1) if found and found.group(1) in time_aggregates else ta
+            query = re.sub(r'ta:[^\s]*','', query)
+        if 'ma:' in query:
+            found = re.compile('ma\:([^\s]+)').search(query)
+            ma = found.group(1) if found and found.group(1) in merchant_aggregates else ma
+            query = re.sub(r'ma:[^\s]*','', query)
         if 'env ' in query:
             query = query.replace('env','').strip().lower()
             list = wf.filter(query, environments)
@@ -353,6 +416,14 @@ def main(wf):
                         icon=ICON_INFO
                 )
             else:
+                wf.add_item(
+                    title="Chart the transactions",
+                    subtitle=f"Highlight and press SHIFT key to {chart_types[ct]} chart aggregated by {time_aggregates[ta]} and {merchant_aggregates[ma]}",
+                    arg="--chart",
+                    valid=True,
+                    quicklookurl=get_chart_url(txns, ct, ta, ma),
+                    icon=ICON_COLOR
+                )                
                 for txn in txns:
                     post = parse(txn['post']).strftime('%Y-%m-%d')
                     merchant = txn['merchant'] if txn['merchant'] else txn['txntext']

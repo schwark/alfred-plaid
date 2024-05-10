@@ -146,10 +146,12 @@ class TxnDB:
         amtf = f" AND amount >= :amtf" if amt_from else ''
         amtt = f" AND amount <= :amtt" if amt_to else ''
         acctq = f" AND account_id = :acct" if acct else ''
+        termsearch = f"id IN (SELECT rowid from txn_fts WHERE txn_fts MATCH :query ORDER BY rank DESC)"
         query = ' '.join([x+'*' if ':' not in x else '' for x in query.strip().split()])
         params = {'query': query, 'amtt': amt_to, 'amtf': amt_from, 'dtt': date_to, 'dtf': date_from, 'srt': sort, 'ord': order, 'acct': acct}
+        termsearch = termsearch if query else ''
         self.debug(params)
-        if not query: return None
+        if not (query or dtf or dtt or amtf or amtt): return None
             
         # Search!
         start = time()
@@ -166,7 +168,7 @@ class TxnDB:
             sql = f"""
                     SELECT transaction_id, account_id, txntext, subtype, merchant, post, currency, amount, category_id, categories 
                     FROM transactions 
-                    WHERE id IN (SELECT rowid from txn_fts WHERE txn_fts MATCH :query ORDER BY rank DESC){dtt}{dtf}{amtt}{amtf}{acctq} ORDER BY {sort} {order}"""
+                    WHERE {termsearch}{dtt}{dtf}{amtt}{amtf}{acctq} ORDER BY {sort} {order}"""
             self.debug(sql)
             cursor.execute(sql, params, )
             results = cursor.fetchall()
