@@ -387,16 +387,17 @@ def main(wf):
                                 valid=True,
                                 icon=get_bank_icon(acct, banks)
                         )                
-        elif query.endswith('dt:'):
+        elif re.match(r'dt\:[^\s]*$', query):
             timeframes = ['This week', 'This month', 'This quarter', 'This half', 'This year', 'Last week', 'Last month', 'Last quarter', 'Last half', 'Last year']
             found = re.compile('dt\:([^\s]+)').search(query)
             term = found.group(1) if found else ''
             list = wf.filter(term, timeframes)
+            query = re.sub(r'dt\:[^\s]*$','',query)
             for period in list:
                 wf.add_item(
                         title=period,
                         subtitle=f"Filter over {period.lower()}",
-                        autocomplete=f"{query}{period.lower().replace(' ','-')}",
+                        autocomplete=f"{query}dt:{period.lower().replace(' ','-')} ",
                         valid=False,
                         icon=ICON_SWITCH
                 )
