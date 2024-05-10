@@ -7,7 +7,7 @@ class Plaid:
         self.client_id = client_id
         self.secret = secret
         self.user_id = user_id
-        self.environment = environment
+        self.environment = str(environment)
         self.logger = logger
         
     def debug(self, text):
@@ -19,6 +19,7 @@ class Plaid:
         params = {'client_id': self.client_id, 'secret': self.secret}
         params = {**params, **data}
         r = None
+        self.debug("plaid_api: url:"+url+", headers: "+str(headers)+", params: "+str(params))
         r = web.post(url, headers=headers, data=json.dumps(params))
         self.debug("plaid_api: url:"+url+", headers: "+str(headers)+", params: "+str(params)+", return code: "+str(r.status_code))
         # throw an error if request failed

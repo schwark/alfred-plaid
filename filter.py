@@ -267,7 +267,7 @@ def main(wf):
     ####################################################################
 
     environ = get_stored_data(wf, 'plaid_environment')
-    environ = DEFAULT_ENV if not environ else environ
+    environ = DEFAULT_ENV if not environ else environ.decode('utf-8')
 
     try:
         client_id = wf.get_password('plaid_client_id')
