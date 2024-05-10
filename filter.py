@@ -30,7 +30,8 @@ def create_chart(txns, ct, ta, ma):
     for txn in txns:
         time_cut = get_time_cut(parse(txn['post']), ta)
         data[time_cut] = data[time_cut] if time_cut in data else {}
-        merchant_cut = txn['merchant'] if 'm' == ma else (txn['categories'].split(',')[0] if 'categories' in txn else 'other')
+        merchant_cut = txn['merchant'] if 'm' == ma else txn['categories'].split(',')[0]
+        merchant_cut = merchant_cut if merchant_cut else 'Other'
         data[time_cut][merchant_cut] = data[time_cut][merchant_cut]+txn['amount'] if merchant_cut in data[time_cut] else txn['amount']
         if merchant_cut not in lines: lines.append(merchant_cut)
         if 'p' != ct:
