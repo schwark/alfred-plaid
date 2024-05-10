@@ -142,7 +142,7 @@ def main(wf):
             'subtitle': 'Add/update bank or card linking with a nickname',
             'autocomplete': 'link',
             'args': ' --link',
-            'icon': ICON_SYNC,
+            'icon': "icons/ui/link.png",
             'valid': True
         },
         'kill': {
@@ -158,7 +158,7 @@ def main(wf):
             'subtitle': 'Update the accounts and transactions from Plaid',
             'autocomplete': 'update',
             'args': ' --update',
-            'icon': ICON_SYNC,
+            'icon': "icons/ui/sync.png",
             'valid': True
         },
         'clientid': {
@@ -166,7 +166,7 @@ def main(wf):
             'subtitle': 'Set client ID for Plaid',
             'autocomplete': 'clientid',
             'args': ' --clientid '+(words[1] if len(words)>1 else ''),
-            'icon': ICON_WEB,
+            'icon': "icons/ui/key.png",
             'valid': len(words) > 1
         },
         'secret': {
@@ -174,7 +174,7 @@ def main(wf):
             'subtitle': 'Set secret for Plaid development environment',
             'autocomplete': 'secret',
             'args': ' --secret '+(words[1] if len(words)>1 else ''),
-            'icon': ICON_WEB,
+            'icon': "icons/ui/password.png",
             'valid': len(words) > 1
         },
         'userid': {
@@ -182,7 +182,7 @@ def main(wf):
             'subtitle': 'Set user ID for Plaid',
             'autocomplete': 'userid',
             'args': ' --userid '+(words[1] if len(words)>1 else ''),
-            'icon': ICON_WEB,
+            'icon': "icons/ui/username.png",
             'valid': len(words) > 1
         },
         'pubtoken': {
@@ -190,7 +190,7 @@ def main(wf):
             'subtitle': 'Set public token for Plaid',
             'autocomplete': 'pubtoken',
             'args': ' --pubtoken '+(words[1] if len(words)>1 else ''),
-            'icon': ICON_WEB,
+            'icon': "icons/ui/key.png",
             'valid': len(words) > 1
         },
         'env': {
@@ -198,7 +198,7 @@ def main(wf):
             'subtitle': 'Set environment for Plaid',
             'autocomplete': 'env ',
             'args': ' --environment '+(words[1] if len(words)>1 else ''),
-            'icon': ICON_WEB,
+            'icon': "icons/ui/choose.png",
             'valid': len(words) > 1 and words[1] in environments
         },
         'act': {
@@ -206,7 +206,7 @@ def main(wf):
             'subtitle': 'Filter results to certain accounts',
             'autocomplete': 'act:',
             'args': ' --acctid '+(words[1] if len(words)>1 else ''),
-            'icon': ICON_WEB,
+            'icon': "icons/ui/account.png",
             'valid': False
         },
         'dt': {
@@ -214,7 +214,7 @@ def main(wf):
             'subtitle': 'Filter results to certain dates',
             'autocomplete': 'dt:',
             'args': ' --dt '+(words[1] if len(words)>1 else ''),
-            'icon': ICON_SWITCH,
+            'icon': "icons/ui/calendar.png",
             'valid': False
         },
         'amtt': {
@@ -222,7 +222,7 @@ def main(wf):
             'subtitle': 'Filter results to transactions up to amount',
             'autocomplete': 'amtt:',
             'args': ' --amtt '+(words[1] if len(words)>1 else ''),
-            'icon': ICON_SWITCH,
+            'icon': "icons/ui/amount.png",
             'valid': False
         },
         'amtf': {
@@ -230,7 +230,7 @@ def main(wf):
             'subtitle': 'Filter results to transactions from amount',
             'autocomplete': 'amtf:',
             'args': ' --amtf '+(words[1] if len(words)>1 else ''),
-            'icon': ICON_SWITCH,
+            'icon': "icons/ui/amount.png",
             'valid': False
         },
         'reinit': {
@@ -238,7 +238,7 @@ def main(wf):
             'subtitle': 'CAUTION: this deletes all accounts, transactions and apikeys...',
             'autocomplete': 'reinit',
             'args': ' --reinit',
-            'icon': ICON_BURN,
+            'icon': "icons/ui/burn.png",
             'valid': True
         },
         'clear': {
@@ -246,7 +246,7 @@ def main(wf):
             'subtitle': 'CAUTION: this deletes all accounts, transactions...',
             'autocomplete': 'clear',
             'args': ' --clear',
-            'icon': ICON_BURN,
+            'icon': "icons/ui/burn.png",
             'valid': True
         },
         'workflow:update': {
@@ -254,7 +254,7 @@ def main(wf):
             'subtitle': 'Updates workflow to latest github version',
             'autocomplete': 'workflow:update',
             'args': '',
-            'icon': ICON_SYNC,
+            'icon': "icons/ui/update.png",
             'valid': True
         }
     }
@@ -312,7 +312,7 @@ def main(wf):
         wf.add_item('New version available',
             'Action this item to install the update',
             autocomplete='workflow:update',
-            icon=ICON_INFO)
+            icon="icons/ui/update.png")
 
     accounts = get_stored_data(wf, 'accounts')
     banks = get_stored_data(wf, 'banks')
@@ -323,7 +323,7 @@ def main(wf):
         wf.add_item('No Accounts...',
                     'Please use pd update - to update your Accounts and Transactions.',
                     valid=False,
-                    icon=ICON_NOTE)
+                    icon="icons/ui/empty.png")
         wf.send_feedback()
         return 0
 
@@ -356,7 +356,7 @@ def main(wf):
                             autocomplete=f"env {env}",
                             arg=' --environment '+env,
                             valid=True,
-                            icon=ICON_WEB
+                            icon=f"icons/ui/{env}.png"
                     )                
         elif 'act:' in query:
             query = query.replace('act:','').strip().lower()
@@ -367,7 +367,7 @@ def main(wf):
                             subtitle="Please try another search term",
                             arg="",
                             valid=True,
-                            icon=ICON_INFO
+                            icon="icons/ui/empty.png"
                     )
             else:
                 wf.add_item(
@@ -375,7 +375,7 @@ def main(wf):
                             subtitle="Remove account filter - set to all accounts",
                             arg=' --acctid all',
                             valid=True,
-                            icon=ICON_COLOR
+                            icon="icons/ui/all.png"
                 )   
                 log.debug(list)             
                 for acct in list:
@@ -394,12 +394,13 @@ def main(wf):
             list = wf.filter(term, timeframes)
             query = re.sub(r'dt\:[^\s]*$','',query)
             for period in list:
+                length = period.split()[1]
                 wf.add_item(
                         title=period,
                         subtitle=f"Filter over {period.lower()}",
                         autocomplete=f"{query}dt:{period.lower().replace(' ','-')} ",
                         valid=False,
-                        icon=ICON_SWITCH
+                        icon=f"icons/ui/{length}.png"
                 )
         else:
             db = TxnDB(DB_FILE, wf.logger)
@@ -415,7 +416,7 @@ def main(wf):
                         subtitle="Please try another search term",
                         arg="",
                         valid=True,
-                        icon=ICON_INFO
+                        icon="icons/ui/empty.png"
                 )
             else:
                 wf.add_item(
@@ -424,7 +425,7 @@ def main(wf):
                     arg="--chart",
                     valid=True,
                     quicklookurl=get_chart_url(txns, ct, ta, ma),
-                    icon=ICON_COLOR
+                    icon='icons/ui/chart.png'
                 )                
                 for txn in txns:
                     post = parse(txn['post']).strftime('%Y-%m-%d')
