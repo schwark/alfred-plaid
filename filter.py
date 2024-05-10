@@ -8,6 +8,7 @@ from common import get_stored_data, DEFAULT_ENV, DB_FILE, get_password, ensure_i
 from db import TxnDB
 import os.path
 from dateutil.parser import parse 
+import re
 
 log = None
 environments = ['development', 'sandbox', 'production']
@@ -161,6 +162,30 @@ def main(wf):
             'icon': ICON_WEB,
             'valid': False
         },
+        'dt': {
+            'title': 'Add a Date Filter',
+            'subtitle': 'Filter results to certain dates',
+            'autocomplete': 'dt:',
+            'args': ' --dt '+(words[1] if len(words)>1 else ''),
+            'icon': ICON_SWITCH,
+            'valid': False
+        },
+        'amtt': {
+            'title': 'Add a Amount To Filter',
+            'subtitle': 'Filter results to transactions up to amount',
+            'autocomplete': 'amtt:',
+            'args': ' --amtt '+(words[1] if len(words)>1 else ''),
+            'icon': ICON_SWITCH,
+            'valid': False
+        },
+        'amtf': {
+            'title': 'Add a Amount From Filter',
+            'subtitle': 'Filter results to transactions from amount',
+            'autocomplete': 'amtf:',
+            'args': ' --amtf '+(words[1] if len(words)>1 else ''),
+            'icon': ICON_SWITCH,
+            'valid': False
+        },
         'reinit': {
             'title': 'Reinitialize the workflow',
             'subtitle': 'CAUTION: this deletes all accounts, transactions and apikeys...',
@@ -170,7 +195,7 @@ def main(wf):
             'valid': True
         },
         'clear': {
-            'title': 'Clear account data, keep passwords',
+            'title': 'Clear account data, keep client secret etc.',
             'subtitle': 'CAUTION: this deletes all accounts, transactions...',
             'autocomplete': 'clear',
             'args': ' --clear',
@@ -298,6 +323,19 @@ def main(wf):
                                 valid=True,
                                 icon=get_bank_icon(acct, banks)
                         )                
+        elif query.endswith('dt:'):
+            timeframes = ['This week', 'This month', 'This quarter', 'This half', 'This year', 'Last week', 'Last month', 'Last quarter', 'Last half', 'Last year']
+            found = re.compile('dt\:([^\s]+)').search(query)
+            term = found.group(1) if found else ''
+            list = wf.filter(term, timeframes)
+            for period in list:
+                wf.add_item(
+                        title=period,
+                        subtitle=f"Filter over {period.lower()}",
+                        autocomplete=f"{query}{period.lower().replace(' ','-')}",
+                        valid=False,
+                        icon=ICON_SWITCH
+                )
         else:
             db = TxnDB(DB_FILE, wf.logger)
             try:

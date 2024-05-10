@@ -2,7 +2,8 @@ import sqlite3
 import os
 from time import time
 import struct
-from datetime import datetime
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 from dateutil.parser import parse
 import re
 
@@ -102,8 +103,44 @@ class TxnDB:
         query, sort = self.extract_filter(query, 'srt', 'text')
         query, order = self.extract_filter(query, 'ord', 'text')
         query, acct = self.extract_filter(query, 'act', 'text')
+        query, dt = self.extract_filter(query, 'dt', 'text')
         sort = sort if sort else 'post'
         order = order if order else 'DESC'
+        if dt:
+            dt = dt.lower().split('-')
+            now = datetime.now()
+            if 'this' in dt[0]:
+                date_to = now
+                if 'week' in dt[1]:
+                    date_from = now - timedelta(days=datetime.today().isoweekday() % 7)
+                elif 'month' in dt[1]:
+                    date_from = now.replace(day=1,hour=0,minute=0,second=0)
+                elif 'quarter' in dt[1]:
+                    currQuarter = (now.month - 1) / 3 + 1
+                    date_from = datetime(now.year, 3 * currQuarter - 2, 1)
+                elif 'half' in dt[1]:
+                    currQuarter = (now.month - 1) / 3 + 1
+                    date_from = datetime(now.year, 3 * currQuarter - 2, 1) - relativedelta(months=3)
+                elif 'year' in dt[1]:    
+                    date_from = now.replace(day=1,month=1,hour=0,minute=0,second=0)
+            elif 'last' in dt[0]:
+                if 'week' in dt[1]:
+                    date_from = now - timedelta(days=datetime.today().isoweekday() % 7 + 7)
+                    date_to = date_from + timedelta(days=7)
+                elif 'month' in dt[1]:
+                    date_from = now.replace(day=1,hour=0,minute=0,second=0) - relativedelta(months=1)
+                    date_to = date_from + relativedelta(months=1,days=-1)
+                elif 'quarter' in dt[1]:
+                    currQuarter = (now.month - 1) / 3 + 1
+                    date_from = datetime(now.year, 3 * currQuarter - 2, 1) - relativedelta(months=3)
+                    date_to = date_from + relativedelta(months=3, days=-1)
+                elif 'half' in dt[1]:
+                    currQuarter = (now.month - 1) / 3 + 1
+                    date_from = datetime(now.year, 3 * currQuarter - 2, 1) - relativedelta(months=6)
+                    date_to = date_from + relativedelta(months=6, days=-1)
+                elif 'year' in dt[1]:    
+                    date_from = now.replace(day=1,month=1,hour=0,minute=0,second=0) - relativedelta(years=1)
+                    date_to = date_from + relativedelta(years=1, days=-1)
         dtf = f" AND post >= :dtf" if date_from else ''
         dtt = f" AND post <= :dtt" if date_to else ''
         amtf = f" AND amount >= :amtf" if amt_from else ''

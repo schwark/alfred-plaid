@@ -49,7 +49,7 @@ The environment should be set to production, but using Sandbox will allow you to
 ## Basic Transaction queries
 
 ```
-pd <search-term> <dtf:from-date?> <dtt:to-date?> <amtt:to-amount?> <amtf:from-amount?>
+pd <dt:(this|last)-(week|month|quarter|year)?> <dtf:from-date?> <dtt:to-date?> <amtt:to-amount?> <amtf:from-amount?> <search-term> 
 ```
 The search term is the only required entry, further filtering is possible by using dtf:<from-date> etc. All those additional fiters are optional.
 
