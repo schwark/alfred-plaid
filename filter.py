@@ -14,32 +14,40 @@ import json
 
 log = None
 environments = ['development', 'sandbox', 'production']
-chart_types = {'p': 'pie', 'l': 'line', 'b': 'bar'}
+chart_types = {'p': 'pie', 'd': 'doughnut', 'l': 'line', 'b': 'bar'}
 time_aggregates = {'a': 'all', 'd': 'day', 'w': 'week', 'm': 'month'}
 merchant_aggregates = {'m': 'merchant', 'c': 'category'}
 
 def get_time_cut(dt, type):
     if 'a' == type: return 'all'
-    if 'd' == type: return dt.strftime('%Y-%m-%d')
-    if 'w' == type: return (dt - timedelta(days=dt.isoweekday() % 7)).strftime('%Y-%m-%d')
-    if 'm' == type: return dt.replace(day=1,hour=0,minute=0,second=0).strftime('%Y-%m')
+    if 'd' == type: return dt.strftime('%b-%d-%y')
+    if 'w' == type: return (dt - timedelta(days=dt.isoweekday() % 7)).strftime('%b-%d-%y')
+    if 'm' == type: return dt.replace(day=1,hour=0,minute=0,second=0).strftime('%b-%y')
 
 def create_chart(txns, ct, ta, ma):
     data = {}
-    lines = ['Total'] if 'p' != ct else []
+    lines = ['Total'] if ct not in ['p','d'] else []
+    min_date = None
+    max_date = None
     for txn in txns:
-        time_cut = get_time_cut(parse(txn['post']), ta)
+        post_date = parse(txn['post'])
+        time_cut = get_time_cut(post_date, ta)
+        if not min_date or post_date < min_date: min_date = post_date
+        if not max_date or post_date > max_date: max_date = post_date
         data[time_cut] = data[time_cut] if time_cut in data else {}
         merchant_cut = txn['merchant'] if 'm' == ma else txn['categories'].split(',')[0]
         merchant_cut = merchant_cut if merchant_cut else 'Other'
         data[time_cut][merchant_cut] = data[time_cut][merchant_cut]+txn['amount'] if merchant_cut in data[time_cut] else txn['amount']
         if merchant_cut not in lines: lines.append(merchant_cut)
-        if 'p' != ct:
+        if ct not in ['p', 'd']:
             data[time_cut]['Total'] = data[time_cut]['Total']+txn['amount'] if 'Total' in data[time_cut] else txn['amount']
+    drop_year = (min_date.year == max_date.year)
     chart = {}
     chart['type'] = chart_types[ct]
+    chart['options'] = {}
+    chart['options']['layout'] = {'padding': 10}
     chart['data'] = {}
-    chart['data']['labels'] = list(data.keys()) if 'p' != ct else lines
+    chart['data']['labels'] = (['-'.join(x.split('-')[:-1]) for x in list(data.keys())] if drop_year else list(data.keys())) if ct not in ['p','d'] else lines
     chart['data']['datasets'] = []
     if 'p' != ct:
         values = {}
@@ -48,7 +56,11 @@ def create_chart(txns, ct, ta, ma):
                 values[mcut] = values[mcut] if mcut in values else []
                 values[mcut].append(data[cut][mcut] if mcut in data[cut] else 0)
         for mcut in values:
-            chart['data']['datasets'].append({'label': mcut, 'data': values[mcut]})
+            cdata = {'label': mcut, 'data': values[mcut]}
+            if 'Total' == mcut:
+                cdata['type'] = 'line'
+                cdata['fill'] = False
+            chart['data']['datasets'].append(cdata)
     else:
         chart['data']['datasets'].append({'data': list(data['all'].values())})
     log.debug(chart)
