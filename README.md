@@ -64,6 +64,10 @@ ta:<d|w|m>              choose periods to chart over from day, week or month
 ma:<m|c>                choose a charting segment to total over from merchant or category for each transaction
 ```
 
+## Charting
+
+Any transaction query as above will show a link to a chart as the first result - hitting the `SHIFT` key will popup the chart. The exact style of the chart can be customized using the `ct:`, `ta:`, and `ma:` modifiers to any transaction query.
+
 ## Reinitialize
 
 ```
