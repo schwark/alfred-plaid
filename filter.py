@@ -11,6 +11,7 @@ from dateutil.parser import parse
 from datetime import datetime, timedelta
 import re
 import json
+import urllib.parse
 
 log = None
 environments = ['development', 'sandbox', 'production']
@@ -80,7 +81,7 @@ def create_chart(txns):
          
 def get_chart_url(txns):
     chart = create_chart(txns)
-    url = f"https://quickchart.io/chart?width=500&height=300&chart={json.dumps(chart, separators=(',', ':'))}"
+    url = f"https://quickchart.io/chart?width=500&height=300&chart={urllib.parse.quote_plus(json.dumps(chart, separators=(',', ':')))}"
     log.debug(url)
     return url
 
@@ -104,16 +105,18 @@ def get_bank_icon(account, banks):
     logo = bank['logo']
     return ensure_icon(name, 'bank', logo)
 
-def get_category_icon(category):
-    l = category.lower().split(',')
-    for i in range(1,len(l)+1):
-        cats = [l[-i], l[-i][:-1]]
-        for cat in cats:
-            cat = cat.replace(' ','')
-            icon = f'icons/category/{cat}.png'
+def get_category_icon(categories):
+    cats = categories.lower().split(',')
+    for i in range(len(cats), 0, -1):
+        log.debug(cats)
+        cat = cats[i-1]
+        words = re.split(r'\s+|\'|,', cat)
+        for i in range(len(words),0,-1):
+            substr = ''.join(words[0:i])
+            icon = f'icons/category/{substr}.png'
             if os.path.exists(icon):
-                return icon    
-
+                return icon  
+              
 def get_txn_icon(txn, accounts, banks, merchants, categories):
     account = accounts[txn['account_id']]
     if 'institution_id' in account:

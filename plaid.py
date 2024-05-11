@@ -103,7 +103,7 @@ class Plaid:
                         'list': txn['category'],
                         'icon': txn['personal_finance_category_icon_url']
                     }
-                ensure_icon(txn['category_id'],'category',txn['personal_finance_category_icon_url'])
+                #ensure_icon(txn['category_id'],'category',txn['personal_finance_category_icon_url'])
         return merchants, categories
 
     def get_transactions(self, item, merchants, categories):
