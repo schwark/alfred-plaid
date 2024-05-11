@@ -22,7 +22,7 @@ def get_environment(wf):
 def ensure_icon(site, type, url=None):
     if not site: return None
     site = site.lower().replace(r'[^a-z0-9]','')
-    size = 32
+    size = 64
     icon = f'icons/{type}/{site}.png'
     if not os.path.exists(icon):
         #url = url if url else f'https://icon.horse/icon/{site}.com'
