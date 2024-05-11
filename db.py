@@ -148,7 +148,7 @@ class TxnDB:
         amtt = f" AND amount <= :amtt" if amt_to else ''
         acctq = f" AND account_id = :acct" if acct else ''
         termsearch = f"id IN (SELECT rowid from txn_fts WHERE txn_fts MATCH :query ORDER BY rank DESC)"
-        query = ' '.join([x+'*' if ':' not in x else '' for x in query.strip().split()])
+        query = ' '.join([x+'*' if ':' not in x else '' for x in query.strip().split()]).strip()
         params = {'query': query, 'amtt': amt_to, 'amtf': amt_from, 'dtt': date_to, 'dtf': date_from, 'srt': sort, 'ord': order, 'acct': acct}
         termsearch = termsearch if query else 'id IS NOT NULL'
         self.debug(params)

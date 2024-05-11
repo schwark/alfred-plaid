@@ -15,23 +15,35 @@ import json
 log = None
 environments = ['development', 'sandbox', 'production']
 chart_types = {'p': 'pie', 'd': 'doughnut', 'l': 'line', 'b': 'bar'}
-time_aggregates = {'a': 'all', 'd': 'day', 'w': 'week', 'm': 'month'}
+time_aggregates = {'d': 'day', 'w': 'week', 'm': 'month'}
 merchant_aggregates = {'m': 'merchant', 'c': 'category'}
+timeframes = ['This week', 'This month', 'This quarter', 'This half', 'This year', 'Last week', 'Last month', 'Last quarter', 'Last half', 'Last year']
 
-def get_time_cut(dt, type):
-    if 'a' == type: return 'all'
-    if 'd' == type: return dt.strftime('%b-%d-%y')
-    if 'w' == type: return (dt - timedelta(days=dt.isoweekday() % 7)).strftime('%b-%d-%y')
-    if 'm' == type: return dt.replace(day=1,hour=0,minute=0,second=0).strftime('%b-%y')
+chart_options = {
+    'ta': 'm', # time aggregation
+    'ma': 'm', # merchant/category aggregation
+    'ct': 'b' # chart type
+}
 
-def create_chart(txns, ct, ta, ma):
+
+def get_time_cut(dt, ta, ct):
+    if ct in ['p', 'd']: return 'all'
+    if 'd' == ta: return dt.strftime('%b-%d-%y')
+    if 'w' == ta: return (dt - timedelta(days=dt.isoweekday() % 7)).strftime('%b-%d-%y')
+    if 'm' == ta: return dt.replace(day=1,hour=0,minute=0,second=0).strftime('%b-%y')
+
+def create_chart(txns):
+    ta = chart_options['ta']
+    ma = chart_options['ma']
+    ct = chart_options['ct']
+    
     data = {}
     lines = ['Total'] if ct not in ['p','d'] else []
     min_date = None
     max_date = None
     for txn in txns:
         post_date = parse(txn['post'])
-        time_cut = get_time_cut(post_date, ta)
+        time_cut = get_time_cut(post_date, ta, ct)
         if not min_date or post_date < min_date: min_date = post_date
         if not max_date or post_date > max_date: max_date = post_date
         data[time_cut] = data[time_cut] if time_cut in data else {}
@@ -66,8 +78,8 @@ def create_chart(txns, ct, ta, ma):
     log.debug(chart)
     return chart
          
-def get_chart_url(txns, ct, ta, ma):
-    chart = create_chart(txns, ct, ta, ma)
+def get_chart_url(txns):
+    chart = create_chart(txns)
     url = f"https://quickchart.io/chart?width=500&height=300&chart={json.dumps(chart, separators=(',', ':'))}"
     log.debug(url)
     return url
@@ -120,17 +132,18 @@ def get_txn_icon(txn, accounts, banks, merchants, categories):
     return icon
 
 def add_config_commands(args, config_commands):
-    word = args.query.lower().split(' ')[0] if args.query else ''
-    config_command_list = wf.filter(word, config_commands.keys(), min_score=80, match_on=MATCH_SUBSTRING | MATCH_STARTSWITH | MATCH_ATOM)
-    if config_command_list:
-        for cmd in config_command_list:
-            wf.add_item(config_commands[cmd]['title'],
-                        config_commands[cmd]['subtitle'],
-                        arg=config_commands[cmd]['args'],
-                        autocomplete=config_commands[cmd]['autocomplete'],
-                        icon=config_commands[cmd]['icon'],
-                        valid=config_commands[cmd]['valid'])
-    return config_command_list
+    words = args.query.lower().split() if args.query else []
+    for word in words:
+        config_command_list = wf.filter(word, config_commands.keys(), min_score=80, match_on=MATCH_SUBSTRING | MATCH_STARTSWITH | MATCH_ATOM)
+        if config_command_list:
+            base = re.sub(fr'{word}$','',args.query)
+            for cmd in config_command_list:
+                wf.add_item(config_commands[cmd]['title'],
+                            config_commands[cmd]['subtitle'],
+                            arg=config_commands[cmd]['args'],
+                            autocomplete=f"{base}{config_commands[cmd]['autocomplete']}",
+                            icon=config_commands[cmd]['icon'],
+                            valid=config_commands[cmd]['valid'])
 
 def extract_commands(wf, args, commands):
     return args
@@ -221,6 +234,30 @@ def main(wf):
             'icon': "icons/ui/account.png",
             'valid': False
         },
+        'ct': {
+            'title': 'Customize chart type',
+            'subtitle': 'Set the chart type generated for transaction set',
+            'autocomplete': 'ct:',
+            'args': ' --ct '+(words[1] if len(words)>1 else ''),
+            'icon': "icons/ui/chart-type.png",
+            'valid': False
+        },
+        'ta': {
+            'title': 'Customize time periods for charting',
+            'subtitle': 'Chart over different time windows (weeks,months,etc.)',
+            'autocomplete': 'ta:',
+            'args': ' --ta '+(words[1] if len(words)>1 else ''),
+            'icon': "icons/ui/time-period.png",
+            'valid': False
+        },
+        'ma': {
+            'title': 'Choose merchant or category based charting',
+            'subtitle': 'Chart totals by merchant or category',
+            'autocomplete': 'ma:',
+            'args': ' --ma '+(words[1] if len(words)>1 else ''),
+            'icon': "icons/ui/categorize.png",
+            'valid': False
+        },
         'dt': {
             'title': 'Add a Date Filter',
             'subtitle': 'Filter results to certain dates',
@@ -268,6 +305,54 @@ def main(wf):
             'args': '',
             'icon': "icons/ui/update.png",
             'valid': True
+        }
+    }
+    
+    config_options = {
+        'env': {
+                'name': 'environment',
+                'title': lambda x: f"{x}",
+                'subtitle': lambda x: f"Set environment to {x.lower()}",
+                'arg': lambda x: f"--environment {x}",
+                'suffix': ' ',
+                'options': environments,
+                'valid': True
+        },
+        'dt': {
+                'name': 'date range',
+                'title': lambda x: f"{x}",
+                'subtitle': lambda x: f"Filter transactions within {x.lower()}",
+                'icon': lambda x: f"{x.split()[1]}",
+                'suffix': '\:',
+                'options': timeframes,
+                'valid': False            
+        },
+        'ct': {
+                'name': 'chart type',
+                'title': lambda x: f"{x}",
+                'subtitle': lambda x: f"Chart type {x.lower()}",
+                'options': chart_types,
+                'suffix': '\:',
+                'set': {'holder': chart_options, 'field': 'ct'},
+                'valid': False                        
+        },
+        'ta': {
+                'name': 'time aggregates',
+                'title': lambda x: f"Aggregate transactions over {x}s",
+                'subtitle': lambda x: f"Totals transactions with a {x.lower()} for charting",
+                'options': time_aggregates,
+                'suffix': '\:',
+                'set': {'holder': chart_options, 'field': 'ta'},
+                'valid': False                                    
+        },
+        'ma': {
+                'name': 'time aggregates',
+                'title': lambda x: f"Aggregate transactions by {x}",
+                'subtitle': lambda x: f"Totals transactions by {x.lower()} for charting",
+                'options': merchant_aggregates,
+                'suffix': '\:',
+                'set': {'holder': chart_options, 'field': 'ma'},
+                'valid': False                                                
         }
     }
 
@@ -341,9 +426,36 @@ def main(wf):
 
     # If script was passed a query, use it to filter posts
     if query:
-        ta = 'm' # time aggregation
-        ma = 'm' # merchant/category aggregation
-        ct = 'b' # chart type
+        for opt in config_options:
+            suffix = config_options[opt]['suffix']
+            if re.findall(fr'{opt}{suffix}[^\s]*$', query):
+                opts = config_options[opt]['options']
+                log.debug(f"{type(opts)} matched")
+                is_array = isinstance(opts, list)
+                if not is_array: opts = opts.keys()
+                found = re.compile(fr'{opt}{suffix}([^\s]+)').search(query)
+                term = found.group(1) if found else ''
+                if term and (term in (opts if is_array else config_options[opt]['options'].values())):
+                    if 'set' in config_options[opt]:
+                        config_options[opt]['set']['holder'][config_options[opt]['set']['field']] = term
+                else:
+                    matches = wf.filter(term, opts, lambda x: x if is_array else opts[x])
+                    query = re.sub(fr'{opt}{suffix}[^\s]*$','',query)
+                    for item in matches:
+                        name = item if is_array else config_options[opt]['options'][item]
+                        log.debug(name)
+                        icon = config_options[opt]['icon'](name) if 'icon' in config_options[opt] else name.lower().replace(' ','-')
+                        suffix = suffix.replace("\\",'')
+                        wf.add_item(
+                                title=config_options[opt]['title'](name),
+                                subtitle=config_options[opt]['subtitle'](name),
+                                autocomplete=f"{query}{opt}{suffix}{item} ",
+                                arg=config_options[opt]['arg'](item) if 'arg' in config_options[opt] else '',
+                                valid=config_options[opt]['valid'],
+                                icon=f"icons/ui/{icon}.png"
+                        )
+        
+        '''
         if 'ct:' in query:
             found = re.compile('ct\:([^\s]+)').search(query)
             ct = found.group(1) if found and found.group(1) in chart_types else ct
@@ -370,15 +482,15 @@ def main(wf):
                             valid=True,
                             icon=f"icons/ui/{env}.png"
                     )                
-        elif 'act:' in query:
+        '''
+        if 'act:' in query:
             query = query.replace('act:','').strip().lower()
-            list = wf.filter(query, accounts.values(), lambda x: f"{x['name']} {x['subtype']}")
-            if not list:
+            matches = wf.filter(query, accounts.values(), lambda x: f"{x['name']} {x['subtype']}")
+            if not matches:
                     wf.add_item(
                             title="No matching accounts found...",
                             subtitle="Please try another search term",
-                            arg="",
-                            valid=True,
+                            valid=False,
                             icon="icons/ui/empty.png"
                     )
             else:
@@ -389,8 +501,8 @@ def main(wf):
                             valid=True,
                             icon="icons/ui/all.png"
                 )   
-                log.debug(list)             
-                for acct in list:
+                log.debug(matches)             
+                for acct in matches:
                     name = acct['name'] if 'name' in acct and acct['name'] else acct['official_name']
                     wf.add_item(
                                 title=name,
@@ -400,12 +512,11 @@ def main(wf):
                                 icon=get_bank_icon(acct, banks)
                         )                
         elif re.match(r'dt\:[^\s]*$', query):
-            timeframes = ['This week', 'This month', 'This quarter', 'This half', 'This year', 'Last week', 'Last month', 'Last quarter', 'Last half', 'Last year']
             found = re.compile('dt\:([^\s]+)').search(query)
             term = found.group(1) if found else ''
-            list = wf.filter(term, timeframes)
+            matches = wf.filter(term, timeframes)
             query = re.sub(r'dt\:[^\s]*$','',query)
-            for period in list:
+            for period in matches:
                 length = period.split()[1]
                 wf.add_item(
                         title=period,
@@ -426,21 +537,19 @@ def main(wf):
                 wf.add_item(
                         title="No matching transactions found...",
                         subtitle="Please try another search term",
-                        arg="",
-                        valid=True,
+                        valid=False,
                         icon="icons/ui/empty.png"
                 )
             else:
                 wf.add_item(
                     title="Chart the transactions",
-                    subtitle=f"Highlight and press SHIFT key to {chart_types[ct]} chart aggregated by {time_aggregates[ta]} and {merchant_aggregates[ma]}",
-                    arg="--chart",
-                    valid=True,
-                    quicklookurl=get_chart_url(txns, ct, ta, ma),
+                    subtitle=f"Highlight and tap SHIFT key to {chart_types[chart_options['ct']]} chart aggregated by {time_aggregates[chart_options['ta']]} and {merchant_aggregates[chart_options['ma']]}",
+                    valid=False,
+                    quicklookurl=get_chart_url(txns),
                     icon='icons/ui/chart.png'
                 )                
                 for txn in txns:
-                    post = parse(txn['post']).strftime('%Y-%m-%d')
+                    post = parse(txn['post']).strftime('%Y %b %d')
                     merchant = txn['merchant'] if txn['merchant'] else txn['txntext']
                     merchant = merchant.ljust(50)
                     wf.add_item(
