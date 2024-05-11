@@ -9,7 +9,8 @@ from urllib.request import urlretrieve
 SERVER_HOST='localhost'
 SERVER_PORT=8383
 USE_HTTPS=False
-LINK_URL= lambda x: f'http{'s' if USE_HTTPS else ''}://{SERVER_HOST}:{SERVER_PORT}/link.html?link_token={x}'
+protocol = 'https' if USE_HTTPS else 'http'
+LINK_URL= lambda x: f'{protocol}://{SERVER_HOST}:{SERVER_PORT}/link.html?link_token={x}'
 DEFAULT_ENV = 'sandbox'
 DB_FILE = 'txns.db'
 
