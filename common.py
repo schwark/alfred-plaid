@@ -8,9 +8,14 @@ from urllib.request import urlretrieve
 
 SERVER_HOST='localhost'
 SERVER_PORT=8383
-LINK_URL= lambda x: f'http://{SERVER_HOST}:{SERVER_PORT}/link.html?link_token={x}'
+LINK_URL= lambda x: f'https://{SERVER_HOST}:{SERVER_PORT}/link.html?link_token={x}'
 DEFAULT_ENV = 'sandbox'
 DB_FILE = 'txns.db'
+
+def get_environment(wf):
+    environ = get_stored_data(wf, 'plaid_environment')
+    environ = DEFAULT_ENV if not environ else environ.decode('utf-8')
+    return environ
 
 def ensure_icon(site, type, url=None):
     if not site: return None

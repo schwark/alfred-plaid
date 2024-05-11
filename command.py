@@ -6,11 +6,17 @@ from workflow import Workflow, PasswordNotFound
 from common import qnotify, error, get_stored_data, open_url, wait_for_public_token, LINK_URL, DEFAULT_ENV, get_password, save_password
 from plaid import Plaid
 from server import run_server, stop_server
-from common import DB_FILE
+from common import DB_FILE, get_environment
 from db import TxnDB
 import os
 
 log = None
+
+def change_env(wf, env):
+    current = get_environment(wf)
+    if env != current:
+        wf.store_data('plaid_environment', env)
+        wf.delete_password('plaid_secret')
 
 def add_item(wf, item):
     if not item: return
@@ -152,7 +158,7 @@ def main(wf):
     if args.environment:  # Script was passed an Hub ID
         log.debug("saving environment "+args.environment)
         # save the key
-        wf.store_data('plaid_environment', str(args.environment))
+        change_env(wf, str(args.environment))
         qnotify('Plaid', f"Environment is {args.environment}")
         return 0  # 0 means script exited cleanly
 
@@ -160,9 +166,8 @@ def main(wf):
     # Check that we have an Client ID/Secret saved
     ####################################################################
 
-    environ = get_stored_data(wf, 'plaid_environment')
-    environ = DEFAULT_ENV if not environ else environ.decode('utf-8')
-
+    environ = get_environment(wf)
+    
     try:
         client_id = wf.get_password('plaid_client_id')
     except PasswordNotFound:  # Client ID has not yet been set

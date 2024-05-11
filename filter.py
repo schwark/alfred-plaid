@@ -3,12 +3,12 @@
 import sys
 import argparse
 from workflow.workflow import MATCH_ATOM, MATCH_STARTSWITH, MATCH_SUBSTRING, MATCH_ALL, MATCH_INITIALS, MATCH_CAPITALS, MATCH_INITIALS_STARTSWITH, MATCH_INITIALS_CONTAIN
-from workflow import Workflow, ICON_WEB, ICON_NOTE, ICON_BURN, ICON_SWITCH, ICON_HOME, ICON_COLOR, ICON_INFO, ICON_SYNC, web, PasswordNotFound
-from common import get_stored_data, DEFAULT_ENV, DB_FILE, get_password, ensure_icon
+from workflow import Workflow, ICON_NOTE, ICON_BURN, PasswordNotFound
+from common import get_stored_data, DB_FILE, ensure_icon, get_environment
 from db import TxnDB
 import os.path
 from dateutil.parser import parse 
-from datetime import datetime, timedelta
+from datetime import timedelta
 import re
 import json
 import urllib.parse
@@ -367,8 +367,7 @@ def main(wf):
     # Check that we have an API key saved
     ####################################################################
 
-    environ = get_stored_data(wf, 'plaid_environment')
-    environ = DEFAULT_ENV if not environ else environ.decode('utf-8')
+    environ = get_environment(wf)
 
     try:
         client_id = wf.get_password('plaid_client_id')
@@ -420,7 +419,16 @@ def main(wf):
     merchants = get_stored_data(wf, 'merchants')
     categories = get_stored_data(wf, 'categories')
     
-    if not accounts or len(accounts) < 1:
+    try:
+        items = wf.get_password('plaid_items')
+    except PasswordNotFound:
+        items = None
+        wf.add_item('No Linked Financial Institutions Found...',
+                    'Please use pd link to link your bank accounts',
+                    valid=False,
+                    icon="icons/ui/no-bank.png")
+    
+    if items and (not accounts or len(accounts) < 1):
         wf.add_item('No Accounts...',
                     'Please use pd update - to update your Accounts and Transactions.',
                     valid=False,

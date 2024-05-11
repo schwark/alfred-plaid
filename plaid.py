@@ -41,7 +41,7 @@ class Plaid:
                 item['link_token'] = result['link_token']
                 return result['link_token'] 
         data = {"client_name": "Alfred Plaid Search", "country_codes": ["US"], "language": "en", "user": {"client_user_id": self.user_id}}
-        products = {"products": ["auth", "transactions", "investments"]}
+        products = {"products": ["transactions"]}
         access = {"access_token": item.get('access_token')}
         if(update and item.get('access_token')):
             data = {**data, **access}

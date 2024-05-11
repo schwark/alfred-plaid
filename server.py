@@ -5,24 +5,22 @@ import threading
 import sys
 from workflow import Workflow, ICON_WEB, ICON_NOTE, ICON_BURN, ICON_SWITCH, ICON_HOME, ICON_COLOR, ICON_INFO, ICON_SYNC, web, PasswordNotFound
 from urllib.parse import urlparse, parse_qs
+import ssl
+
+def get_ssl_context(certfile, keyfile):
+    context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+    context.load_cert_chain(certfile, keyfile)
+    #context.set_ciphers("@SECLEVEL=1:ALL")
+    return context
 
 def kill_server(request):
     threading.Thread(target=webServer.server_close).start()
     
-def pub_token(request):
-    wf = Workflow(libraries=['./lib'], update_settings={
-        'github_slug': 'schwark/alfred-plaid'
-    })
-    params = parse_qs(urlparse(request.path).query)
-    if 'pubtoken' in params:
-        pass
-
 routes = {
     '/link.html' : 'file',
     '/images/wallpaper.jpg' : 'file',
     '/images/alfred-plaid.png' : 'file',
-    '/kill': kill_server,
-    '/pubtoken': pub_token
+    '/kill': kill_server
 }
 
 webServer = None
@@ -55,8 +53,10 @@ class MyServer(SimpleHTTPRequestHandler):
 
 def run_server(wf):
     webServer = HTTPServer((SERVER_HOST, SERVER_PORT), MyServer)
+    context = get_ssl_context("cert.pem", "key.pem")
+    webServer.socket = context.wrap_socket(webServer.socket, server_side=True)
 
-    wf.logger.debug("Server started http://%s:%s" % (SERVER_HOST, SERVER_PORT))
+    wf.logger.debug("Server started https://%s:%s" % (SERVER_HOST, SERVER_PORT))
     try:
         threading.Thread(target=webServer.serve_forever, daemon=True).start()
     except KeyboardInterrupt:
