@@ -25,6 +25,14 @@ pd secret <secret>
 ```
 This should only be needed once per install or after a reinit
 
+## Account Linking
+
+```
+pd link
+```
+This should be needed whenever you want to link a new account
+
+
 ## Account/Transactions Update
 
 ```

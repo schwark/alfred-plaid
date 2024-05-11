@@ -425,8 +425,8 @@ def main(wf):
                     'Please use pd update - to update your Accounts and Transactions.',
                     valid=False,
                     icon="icons/ui/empty.png")
-        wf.send_feedback()
-        return 0
+#        wf.send_feedback()
+#        return 0
 
     # If script was passed a query, use it to filter posts
     if query:

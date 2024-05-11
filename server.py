@@ -19,6 +19,8 @@ def pub_token(request):
 
 routes = {
     '/link.html' : 'file',
+    '/images/wallpaper.jpg' : 'file',
+    '/images/alfred-plaid.png' : 'file',
     '/kill': kill_server,
     '/pubtoken': pub_token
 }
