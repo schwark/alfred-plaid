@@ -51,7 +51,7 @@ The environment should be set to production, but using Sandbox will allow you to
 ```
 pd <dt:(this|last)-(week|month|quarter|half|year)?> <dtf:from-date?> <dtt:to-date?> <amtt:to-amount?> <amtf:from-amount?> <ct:p(ie)|(d)oughnut|b(ar)|l(ine)> <ta:d(ay)|w(eek)|m(onth)> <ma:m(erchant)|c(ategory)> <search-term> 
 ```
-The search term is the only required entry, further filtering is possible by using modifiers. All those additional fiters are optional.
+The search term is the only required entry, further filtering is possible by using modifiers. All those additional fiters are optional. If any of the other modifiers are specified, the search term is also optional
 
 ```
 dtf:<from-date>         transactions on or after this date
@@ -66,7 +66,7 @@ ma:<m|c>                choose a charting segment to total over from merchant or
 
 ## Charting
 
-Any transaction query as above will show a link to a chart as the first result - hitting the `SHIFT` key will popup the chart. The exact style of the chart can be customized using the `ct:`, `ta:`, and `ma:` modifiers to any transaction query.
+Any transaction query as above will show a link to a chart as the first result - hitting the `SHIFT` key (NO click - only tap `SHIFT` key) will popup the chart. The exact style of the chart can be customized using the `ct:`, `ta:`, and `ma:` modifiers to any transaction query.
 
 ## Reinitialize
 
