@@ -428,61 +428,33 @@ def main(wf):
     if query:
         for opt in config_options:
             suffix = config_options[opt]['suffix']
+            opts = config_options[opt]['options']
+            is_array = isinstance(opts, list)
+            if not is_array: opts = opts.keys()
+            found = re.findall(fr'{opt}{suffix}([^\s]+)', query)
+            term = found[0] if found else ''
             if re.findall(fr'{opt}{suffix}[^\s]*$', query):
-                opts = config_options[opt]['options']
-                log.debug(f"{type(opts)} matched")
-                is_array = isinstance(opts, list)
-                if not is_array: opts = opts.keys()
-                found = re.compile(fr'{opt}{suffix}([^\s]+)').search(query)
-                term = found.group(1) if found else ''
-                if term and (term in (opts if is_array else config_options[opt]['options'].values())):
+                matches = wf.filter(term, opts, lambda x: x if is_array else opts[x])
+                query = re.sub(fr'{opt}{suffix}[^\s]*$','',query)
+                for item in matches:
+                    name = item if is_array else config_options[opt]['options'][item]
+                    log.debug(name)
+                    icon = config_options[opt]['icon'](name) if 'icon' in config_options[opt] else name.lower().replace(' ','-')
+                    suffix = suffix.replace("\\",'')
+                    wf.add_item(
+                            title=config_options[opt]['title'](name),
+                            subtitle=config_options[opt]['subtitle'](name),
+                            autocomplete=f"{query}{opt}{suffix}{item} ",
+                            arg=config_options[opt]['arg'](item) if 'arg' in config_options[opt] else '',
+                            valid=config_options[opt]['valid'],
+                            icon=f"icons/ui/{icon}.png"
+                    )
+            if found:
+                log.debug(f'found {term} with {opts}')
+                if term and (term in opts):
                     if 'set' in config_options[opt]:
                         config_options[opt]['set']['holder'][config_options[opt]['set']['field']] = term
-                else:
-                    matches = wf.filter(term, opts, lambda x: x if is_array else opts[x])
-                    query = re.sub(fr'{opt}{suffix}[^\s]*$','',query)
-                    for item in matches:
-                        name = item if is_array else config_options[opt]['options'][item]
-                        log.debug(name)
-                        icon = config_options[opt]['icon'](name) if 'icon' in config_options[opt] else name.lower().replace(' ','-')
-                        suffix = suffix.replace("\\",'')
-                        wf.add_item(
-                                title=config_options[opt]['title'](name),
-                                subtitle=config_options[opt]['subtitle'](name),
-                                autocomplete=f"{query}{opt}{suffix}{item} ",
-                                arg=config_options[opt]['arg'](item) if 'arg' in config_options[opt] else '',
-                                valid=config_options[opt]['valid'],
-                                icon=f"icons/ui/{icon}.png"
-                        )
-        
-        '''
-        if 'ct:' in query:
-            found = re.compile('ct\:([^\s]+)').search(query)
-            ct = found.group(1) if found and found.group(1) in chart_types else ct
-            if found and 'p' == found.group(1): ta = 'a'
-            query = re.sub(r'ct:[^\s]*','', query)
-        if 'ta:' in query:
-            found = re.compile('ta\:([^\s]+)').search(query)
-            if found and 'a' == found.group(1): ct = 'p'
-            ta = found.group(1) if found and found.group(1) in time_aggregates else ta
-            query = re.sub(r'ta:[^\s]*','', query)
-        if 'ma:' in query:
-            found = re.compile('ma\:([^\s]+)').search(query)
-            ma = found.group(1) if found and found.group(1) in merchant_aggregates else ma
-            query = re.sub(r'ma:[^\s]*','', query)
-        if 'env ' in query:
-            query = query.replace('env','').strip().lower()
-            list = wf.filter(query, environments)
-            for env in list:
-                wf.add_item(
-                            title=env,
-                            subtitle=f"Set environment to {env}",
-                            autocomplete=f"env {env}",
-                            arg=' --environment '+env,
-                            valid=True,
-                            icon=f"icons/ui/{env}.png"
-                    )                
-        '''
+    
         if 'act:' in query:
             query = query.replace('act:','').strip().lower()
             matches = wf.filter(query, accounts.values(), lambda x: f"{x['name']} {x['subtype']}")
