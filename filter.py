@@ -315,7 +315,7 @@ def main(wf):
         'env': {
                 'name': 'environment',
                 'title': lambda x: f"{x}",
-                'subtitle': lambda x: f"Set environment to {x.lower()}",
+                'subtitle': lambda x: f"Set environment to {x}" if get_environment(wf) != x else f"Current environment is {x}",
                 'arg': lambda x: f"--environment {x}",
                 'suffix': ' ',
                 'options': environments,
@@ -423,6 +423,7 @@ def main(wf):
         items = get_password(wf, 'plaid_items')
     except PasswordNotFound:
         items = None
+    if not items:
         wf.add_item('No Linked Financial Institutions Found...',
                     'Please use pd link to link your bank accounts',
                     valid=False,
@@ -435,6 +436,8 @@ def main(wf):
                     icon="icons/ui/empty.png")
 #        wf.send_feedback()
 #        return 0
+
+    log.debug(f" items are {items} and accounts are {accounts}")
 
     # If script was passed a query, use it to filter posts
     if query:
@@ -471,7 +474,7 @@ def main(wf):
         if 'act:' in query:
             query = query.replace('act:','').strip().lower()
             matches = wf.filter(query, accounts.values(), lambda x: f"{x['name']} {x['subtype']}")
-            if not matches:
+            if items and not matches:
                     wf.add_item(
                             title="No matching accounts found...",
                             subtitle="Please try another search term",
@@ -519,12 +522,13 @@ def main(wf):
             if acct_id: query = f"{query} act:{acct_id}"
             txns = db.get_results(query)
             if not txns:
-                wf.add_item(
-                        title="No matching transactions found...",
-                        subtitle="Please try another search term",
-                        valid=False,
-                        icon="icons/ui/empty.png"
-                )
+                if items and accounts:
+                    wf.add_item(
+                            title="No matching transactions found...",
+                            subtitle="Please try another search term",
+                            valid=False,
+                            icon="icons/ui/empty.png"
+                    )
             else:
                 wf.add_item(
                     title="Chart the transactions",
