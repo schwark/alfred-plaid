@@ -520,7 +520,7 @@ def main(wf):
             else:
                 wf.add_item(
                     title="Chart the transactions",
-                    subtitle=f"Highlight and tap SHIFT key to {chart_types[chart_options['ct']]} chart aggregated by {time_aggregates[chart_options['ta']]} and {merchant_aggregates[chart_options['ma']]}",
+                    subtitle=f"Highlight and tap SHIFT key for {chart_types[chart_options['ct']]} chart aggregated by {time_aggregates[chart_options['ta']]} and {merchant_aggregates[chart_options['ma']]}",
                     valid=False,
                     quicklookurl=get_chart_url(txns),
                     icon='icons/ui/chart.png'
