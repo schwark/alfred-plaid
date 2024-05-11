@@ -85,6 +85,7 @@ def main(wf):
     
     if args.clear or args.reinit:
         wf.reset()
+        wf.delete_password('plaid_items')
         try:
             os.remove(DB_FILE)
         except OSError:
@@ -96,7 +97,6 @@ def main(wf):
         wf.delete_password('plaid_client_id')
         wf.delete_password('plaid_secret')
         wf.delete_password('plaid_user_id')
-        wf.delete_password('plaid_items')
         qnotify('Plaid', 'Workflow reinitialized')
         return 0
 
