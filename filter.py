@@ -474,7 +474,8 @@ def main(wf):
         if 'act:' in query:
             query = query.replace('act:','').strip().lower()
             matches = wf.filter(query, accounts.values(), lambda x: f"{x['name']} {x['subtype']}")
-            if items and not matches:
+            if not matches:
+                if items:
                     wf.add_item(
                             title="No matching accounts found...",
                             subtitle="Please try another search term",
