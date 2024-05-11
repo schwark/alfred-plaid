@@ -53,8 +53,9 @@ class MyServer(SimpleHTTPRequestHandler):
 
 def run_server(wf):
     webServer = HTTPServer((SERVER_HOST, SERVER_PORT), MyServer)
-    context = get_ssl_context("cert.pem", "key.pem")
-    if USE_HTTPS: webServer.socket = context.wrap_socket(webServer.socket, server_side=True)
+    if USE_HTTPS: 
+        context = get_ssl_context("cert.pem", "key.pem")
+        webServer.socket = context.wrap_socket(webServer.socket, server_side=True)
 
     wf.logger.debug("Server started https://%s:%s" % (SERVER_HOST, SERVER_PORT))
     try:
