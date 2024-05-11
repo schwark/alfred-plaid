@@ -530,7 +530,7 @@ def main(wf):
                     merchant = txn['merchant'] if txn['merchant'] else txn['txntext']
                     merchant = merchant.ljust(50)
                     wf.add_item(
-                            title=f"{post}   {merchant}   ${txn['amount']:.2f}",
+                            title=f"{post}\t{merchant}\t\t${txn['amount']:.2f}",
                             subtitle=f"{txn['categories']}   {txn['txntext']}",
                             arg=' --txnid '+txn['transaction_id'],
                             valid=True,
