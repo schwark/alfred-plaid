@@ -232,7 +232,7 @@ def main(wf):
         'act': {
             'title': 'Add an Account Filter',
             'subtitle': 'Filter results to certain accounts',
-            'autocomplete': 'act:',
+            'autocomplete': 'act: ',
             'args': ' --acctid '+(words[1] if len(words)>1 else ''),
             'icon': "icons/ui/account.png",
             'valid': False
