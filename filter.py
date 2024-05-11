@@ -4,7 +4,7 @@ import sys
 import argparse
 from workflow.workflow import MATCH_ATOM, MATCH_STARTSWITH, MATCH_SUBSTRING, MATCH_ALL, MATCH_INITIALS, MATCH_CAPITALS, MATCH_INITIALS_STARTSWITH, MATCH_INITIALS_CONTAIN
 from workflow import Workflow, ICON_NOTE, ICON_BURN, PasswordNotFound
-from common import get_stored_data, DB_FILE, ensure_icon, get_environment
+from common import get_stored_data, DB_FILE, ensure_icon, get_environment, get_password
 from db import TxnDB
 import os.path
 from dateutil.parser import parse 
@@ -420,7 +420,7 @@ def main(wf):
     categories = get_stored_data(wf, 'categories')
     
     try:
-        items = wf.get_password('plaid_items')
+        items = get_password(wf, 'plaid_items')
     except PasswordNotFound:
         items = None
         wf.add_item('No Linked Financial Institutions Found...',
