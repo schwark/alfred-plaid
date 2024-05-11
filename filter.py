@@ -328,6 +328,7 @@ def main(wf):
                 'icon': lambda x: f"{x.split()[1]}",
                 'suffix': '\:',
                 'options': timeframes,
+                'id': lambda x: x.lower().replace(' ','-'),
                 'valid': False            
         },
         'ct': {
@@ -441,13 +442,14 @@ def main(wf):
                 query = re.sub(fr'{opt}{suffix}[^\s]*$','',query)
                 for item in matches:
                     name = item if is_array else config_options[opt]['options'][item]
+                    id = config_options[opt]['id'](item) if 'id' in config_options[opt] else item
                     log.debug(name)
                     icon = config_options[opt]['icon'](name) if 'icon' in config_options[opt] else name.lower().replace(' ','-')
                     suffix = suffix.replace("\\",'')
                     wf.add_item(
                             title=config_options[opt]['title'](name),
                             subtitle=config_options[opt]['subtitle'](name),
-                            autocomplete=f"{query}{opt}{suffix}{item} ",
+                            autocomplete=f"{query}{opt}{suffix}{id} ",
                             arg=config_options[opt]['arg'](item) if 'arg' in config_options[opt] else '',
                             valid=config_options[opt]['valid'],
                             icon=f"icons/ui/{icon}.png"
