@@ -31,10 +31,7 @@ def get_environment(wf):
 def ensure_icon_dir(datadir, type):
     dir = f'{datadir}/icons/{type}'
     if not os.path.exists(dir):
-        if 'category' == type:
-            shutil.copytree(f'icons/{type}', f'{datadir}/icons/')
-        else:
-            os.makedirs(dir)
+        os.makedirs(dir)
     return dir
 
 def ensure_icon(datadir, site, type, url=None):
