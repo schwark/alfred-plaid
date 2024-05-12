@@ -3,10 +3,10 @@
 import sys
 import argparse
 from workflow import Workflow, PasswordNotFound
-from common import qnotify, error, get_stored_data, open_url, wait_for_public_token, LINK_URL, DEFAULT_ENV, get_password, save_password
+from common import qnotify, error, get_stored_data, open_url, wait_for_public_token, get_link_func, CERT_FILE, KEY_FILE
 from plaid import Plaid
 from server import run_server, stop_server
-from common import DB_FILE, get_environment
+from common import DB_FILE, get_environment, get_secure_value, set_secure_value, set_current_user, ALL_ENV, ALL_USER, reset_secure_values, get_current_user
 from db import TxnDB
 import os
 
@@ -15,20 +15,19 @@ log = None
 def change_env(wf, env):
     current = get_environment(wf)
     if env != current:
-        wf.store_data('plaid_environment', env)
-        wf.delete_password('plaid_secret')
+        wf.settings['environment'] = env
 
 def add_item(wf, item):
     if not item: return
-    items = get_password(wf, 'plaid_items')
+    items = get_secure_value(wf, 'items', {})
     items[item['item_id']] = item
-    save_password(wf, 'plaid_items', items)
+    set_secure_value(wf, 'items', items)
 
 def update_items(wf, plaid):
     log.debug('updating items...')
-    db = TxnDB(DB_FILE, wf.logger)
+    db = TxnDB(wf.datafile(DB_FILE), wf.logger)
     
-    items = get_password(wf, 'plaid_items')
+    items = get_secure_value(wf, 'items', {})
     accounts = get_stored_data(wf, 'accounts', {})
     merchants = get_stored_data(wf, 'merchants', {})
     categories = get_stored_data(wf, 'categories', {})
@@ -65,6 +64,7 @@ def main(wf):
     parser.add_argument('--userid', dest='userid', nargs='?', default=None)
     parser.add_argument('--pubtoken', dest='pubtoken', nargs='?', default=None)
     parser.add_argument('--environment', dest='environment', nargs='?', default=None)
+    parser.add_argument('--proto', dest='proto', nargs='?', default=None)
     parser.add_argument('--acctid', dest='acctid', nargs='?', default=None)
     # add an optional (nargs='?') --update argument and save its
     # value to 'apikey' (dest). This will be called from a separate "Run Script"
@@ -91,18 +91,16 @@ def main(wf):
     
     if args.clear or args.reinit:
         wf.reset()
-        wf.delete_password('plaid_items')
         try:
-            os.remove(DB_FILE)
+            os.remove(wf.datafile(DB_FILE))
         except OSError:
             pass
-        qnotify('Plaid', 'Data Cleared')
+        qnotify('Plaid', 'Transaction Data Cleared')
 
     # Reinitialize if necessary
     if args.reinit:
-        wf.delete_password('plaid_client_id')
-        wf.delete_password('plaid_secret')
-        wf.delete_password('plaid_user_id')
+        reset_secure_values(wf)
+        wf.clear_data()
         qnotify('Plaid', 'Workflow reinitialized')
         return 0
 
@@ -113,8 +111,7 @@ def main(wf):
     # save Client ID if that is passed in
     if args.clientid:  # Script was passed an API key
         log.debug("saving client id "+args.clientid)
-        # save the key
-        wf.save_password('plaid_client_id', args.clientid)
+        set_secure_value(wf, 'client_id', args.clientid, ALL_USER, ALL_ENV)
         qnotify('Plaid', 'Client ID Saved')
         return 0  # 0 means script exited cleanly
 
@@ -122,17 +119,14 @@ def main(wf):
         log.debug("saving filtered account id "+args.acctid)
         accounts = get_stored_data(wf, 'accounts', {})
         if 'all' == args.acctid:
-            wf.save_password('plaid_acct_id', '')
+            set_secure_value(wf, 'acct_filter', [])
             qnotify('Plaid', 'Account Filter Removed')
         elif args.acctid in accounts:
-            try:
-                acct_id = wf.get_password('plaid_acct_id')
-            except:
-                acct_id = ''
-            # save the key
-            acct_id = ' '.join(acct_id.split().extend([args.acctid]))
-            wf.save_password('plaid_acct_id', acct_id)
-            name = ','.join([accounts[x]['name'] for x in acct_id.split()])
+            acct_filter = get_secure_value(wf, 'acct_filter', [])
+            if args.acctid not in acct_filter:
+                acct_filter.append(args.acctid)
+                set_secure_value(wf, 'acct_filter', acct_filter)
+            name = ','.join([accounts[x]['name'] for x in acct_filter])
             qnotify('Plaid', 'Account Filter: '+name)
         else:
             qnotify('Plaid', 'Account Filter Failed')
@@ -141,17 +135,15 @@ def main(wf):
     # save User ID if that is passed in
     if args.userid:  # Script was passed an API key
         log.debug("saving user id "+args.userid)
-        # save the key
-        wf.save_password('plaid_user_id', args.userid)
-        qnotify('Plaid', 'User ID Saved')
+        set_current_user(wf, args.userid)
+        qnotify('Plaid', f'User is now {args.userid}')
         return 0  # 0 means script exited cleanly
 
     # save Secret if that is passed in
     if args.secret:  # Script was passed an Hub ID
         log.debug("saving secret "+args.secret)
-        # save the key
-        wf.save_password('plaid_secret', args.secret)
-        qnotify('Plaid', 'Secret Saved')
+        set_secure_value(wf, 'secret', args.secret, ALL_USER)
+        qnotify('Plaid', f'Secret Saved for {get_environment(wf)}')
         return 0  # 0 means script exited cleanly
 
     # save Secret if that is passed in
@@ -161,6 +153,12 @@ def main(wf):
         change_env(wf, str(args.environment))
         qnotify('Plaid', f"Environment is {args.environment}")
         return 0  # 0 means script exited cleanly
+    
+    if args.proto:
+        log.debug("saving protocol "+args.proto)
+        wf.settings['protocol'] = args.proto
+        qnotify('Plaid', f"Protocol is now {args.proto}")
+        return 0
 
     ####################################################################
     # Check that we have an Client ID/Secret saved
@@ -168,21 +166,18 @@ def main(wf):
 
     environ = get_environment(wf)
     
-    try:
-        client_id = wf.get_password('plaid_client_id')
-    except PasswordNotFound:  # Client ID has not yet been set
+    client_id = get_secure_value(wf, 'client_id', None, ALL_USER, ALL_ENV)
+    if not client_id:
         error('Client ID not found')
         return 0
 
-    try:
-        user_id = wf.get_password('plaid_user_id')
-    except PasswordNotFound:  # User ID has not yet been set
+    user_id = get_current_user(wf)
+    if not user_id:
         error('User ID not found')
         return 0
 
-    try:
-        secret = wf.get_password('plaid_secret')
-    except PasswordNotFound:  # Secret has not yet been set
+    secret = get_secure_value(wf, 'secret', None, ALL_USER)
+    if not secret:
         error('Secret not found')
         return 0
         
@@ -205,7 +200,7 @@ def main(wf):
             run_server(wf)
             link_token = plaid.get_link_token(item)
             log.debug(f'link token is {link_token}')
-            open_url(wf, LINK_URL(link_token))
+            open_url(wf, get_link_func(wf)(link_token))
             public_token = wait_for_public_token(wf)
             log.debug(f'pubtoken is {public_token}')
         finally:

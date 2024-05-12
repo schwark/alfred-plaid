@@ -1,13 +1,21 @@
 from http.server import SimpleHTTPRequestHandler, HTTPServer
-from common import SERVER_HOST, SERVER_PORT, USE_HTTPS
+from common import SERVER_HOST, SERVER_PORT, get_cmd_output, get_protocol, CERT_FILE, KEY_FILE
 import time
 import threading
 import sys
 from workflow import Workflow, ICON_WEB, ICON_NOTE, ICON_BURN, ICON_SWITCH, ICON_HOME, ICON_COLOR, ICON_INFO, ICON_SYNC, web, PasswordNotFound
 from urllib.parse import urlparse, parse_qs
 import ssl
+import os.path
 
-def get_ssl_context(certfile, keyfile):
+def ensure_keys(certfile, keyfile, wf):
+    if not (os.path.exists(certfile) and os.path.exists(keyfile)):
+        get_cmd_output(f"openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout '{keyfile}' -out '{certfile}' -config ssl.cnf", wf)
+    
+def get_ssl_context(certfile, keyfile, wf):
+    certfile = wf.datafile(certfile)
+    keyfile = wf.datafile(keyfile)
+    ensure_keys(certfile, keyfile, wf)
     context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
     context.load_cert_chain(certfile, keyfile)
     #context.set_ciphers("@SECLEVEL=1:ALL")
@@ -53,8 +61,8 @@ class MyServer(SimpleHTTPRequestHandler):
 
 def run_server(wf):
     webServer = HTTPServer((SERVER_HOST, SERVER_PORT), MyServer)
-    if USE_HTTPS: 
-        context = get_ssl_context("cert.pem", "key.pem")
+    if 'https' == get_protocol(wf): 
+        context = get_ssl_context(CERT_FILE, KEY_FILE, wf)
         webServer.socket = context.wrap_socket(webServer.socket, server_side=True)
 
     wf.logger.debug("Server started https://%s:%s" % (SERVER_HOST, SERVER_PORT))

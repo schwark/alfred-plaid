@@ -95,6 +95,47 @@ class TxnDB:
                 pass
         return query,result
     
+    def parse_dt(self, dt):
+        date_from = None
+        date_to = None
+        if not dt: return date_from, date_to
+        dt = dt.lower().split('-')
+        if len(dt) > 1:
+            now = datetime.now()
+            if 'this' in dt[0]:
+                date_to = now
+                if 'week' in dt[1]:
+                    date_from = now - timedelta(days=datetime.today().isoweekday() % 7)
+                elif 'month' in dt[1]:
+                    date_from = now.replace(day=1,hour=0,minute=0,second=0)
+                elif 'quarter' in dt[1]:
+                    currQuarter = (now.month - 1) / 3 + 1
+                    date_from = datetime(now.year, 3 * currQuarter - 2, 1)
+                elif 'half' in dt[1]:
+                    currQuarter = (now.month - 1) / 3 + 1
+                    date_from = datetime(now.year, 3 * currQuarter - 2, 1) - relativedelta(months=3)
+                elif 'year' in dt[1]:    
+                    date_from = now.replace(day=1,month=1,hour=0,minute=0,second=0)
+            elif 'last' in dt[0]:
+                if 'week' in dt[1]:
+                    date_from = now - timedelta(days=datetime.today().isoweekday() % 7 + 7)
+                    date_to = date_from + timedelta(days=7)
+                elif 'month' in dt[1]:
+                    date_from = now.replace(day=1,hour=0,minute=0,second=0) - relativedelta(months=1)
+                    date_to = date_from + relativedelta(months=1,days=-1)
+                elif 'quarter' in dt[1]:
+                    currQuarter = (now.month - 1) / 3 + 1
+                    date_from = datetime(now.year, 3 * currQuarter - 2, 1) - relativedelta(months=3)
+                    date_to = date_from + relativedelta(months=3, days=-1)
+                elif 'half' in dt[1]:
+                    currQuarter = (now.month - 1) / 3 + 1
+                    date_from = datetime(now.year, 3 * currQuarter - 2, 1) - relativedelta(months=6)
+                    date_to = date_from + relativedelta(months=6, days=-1)
+                elif 'year' in dt[1]:    
+                    date_from = now.replace(day=1,month=1,hour=0,minute=0,second=0) - relativedelta(years=1)
+                    date_to = date_from + relativedelta(years=1, days=-1)
+        return date_from, date_to
+    
     def get_results(self, query):
         query, date_from = self.extract_filter(query, 'dtf', 'date')
         query, date_to = self.extract_filter(query, 'dtt', 'date')
@@ -104,49 +145,18 @@ class TxnDB:
         query, order = self.extract_filter(query, 'ord', 'text')
         query, acct = self.extract_filter(query, 'act', 'text')
         query, dt = self.extract_filter(query, 'dt', 'text')
+        if dt:
+            dfro, dto = self.parse_dt(dt)
+            date_from = dfro if dfro and not date_from else date_from
+            date_to = dto if dto and not date_to else date_to
+        
         sort = sort if sort else 'post'
         order = order if order else 'DESC'
-        if dt:
-            dt = dt.lower().split('-')
-            if len(dt) > 1:
-                now = datetime.now()
-                if 'this' in dt[0]:
-                    date_to = now
-                    if 'week' in dt[1]:
-                        date_from = now - timedelta(days=datetime.today().isoweekday() % 7)
-                    elif 'month' in dt[1]:
-                        date_from = now.replace(day=1,hour=0,minute=0,second=0)
-                    elif 'quarter' in dt[1]:
-                        currQuarter = (now.month - 1) / 3 + 1
-                        date_from = datetime(now.year, 3 * currQuarter - 2, 1)
-                    elif 'half' in dt[1]:
-                        currQuarter = (now.month - 1) / 3 + 1
-                        date_from = datetime(now.year, 3 * currQuarter - 2, 1) - relativedelta(months=3)
-                    elif 'year' in dt[1]:    
-                        date_from = now.replace(day=1,month=1,hour=0,minute=0,second=0)
-                elif 'last' in dt[0]:
-                    if 'week' in dt[1]:
-                        date_from = now - timedelta(days=datetime.today().isoweekday() % 7 + 7)
-                        date_to = date_from + timedelta(days=7)
-                    elif 'month' in dt[1]:
-                        date_from = now.replace(day=1,hour=0,minute=0,second=0) - relativedelta(months=1)
-                        date_to = date_from + relativedelta(months=1,days=-1)
-                    elif 'quarter' in dt[1]:
-                        currQuarter = (now.month - 1) / 3 + 1
-                        date_from = datetime(now.year, 3 * currQuarter - 2, 1) - relativedelta(months=3)
-                        date_to = date_from + relativedelta(months=3, days=-1)
-                    elif 'half' in dt[1]:
-                        currQuarter = (now.month - 1) / 3 + 1
-                        date_from = datetime(now.year, 3 * currQuarter - 2, 1) - relativedelta(months=6)
-                        date_to = date_from + relativedelta(months=6, days=-1)
-                    elif 'year' in dt[1]:    
-                        date_from = now.replace(day=1,month=1,hour=0,minute=0,second=0) - relativedelta(years=1)
-                        date_to = date_from + relativedelta(years=1, days=-1)
         dtf = f" AND post >= :dtf" if date_from else ''
         dtt = f" AND post <= :dtt" if date_to else ''
         amtf = f" AND amount >= :amtf" if amt_from else ''
         amtt = f" AND amount <= :amtt" if amt_to else ''
-        acctq = f" AND account_id = :acct" if acct else ''
+        acctq = f" AND account_id IN (:acct)" if acct else ''
         termsearch = f"id IN (SELECT rowid from txn_fts WHERE txn_fts MATCH :query ORDER BY rank DESC)"
         query = ' '.join([x+'*' if ':' not in x else '' for x in query.strip().split()]).strip()
         params = {'query': query, 'amtt': amt_to, 'amtf': amt_from, 'dtt': date_to, 'dtf': date_from, 'srt': sort, 'ord': order, 'acct': acct}

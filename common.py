@@ -8,16 +8,24 @@ from urllib.request import urlretrieve
 
 SERVER_HOST='localhost'
 SERVER_PORT=8383
-USE_HTTPS=False
-protocol = 'https' if USE_HTTPS else 'http'
-LINK_URL= lambda x: f'{protocol}://{SERVER_HOST}:{SERVER_PORT}/link.html?link_token={x}'
+SERVER_PROTOCOL='http'
 DEFAULT_ENV = 'sandbox'
 DB_FILE = 'txns.db'
+SECURE_STORE = 'plaid_secure'
+ALL_ENV = 'global'
+ALL_USER = 'config'
+CERT_FILE = 'cert.pem'
+KEY_FILE = 'key.pem'
+
+def get_protocol(wf):
+    return wf.settings['protocol'] if 'protocol' in wf.settings else SERVER_PROTOCOL
+
+def get_link_func(wf):
+    proto = get_protocol(wf)
+    return lambda x: f'{proto}://{SERVER_HOST}:{SERVER_PORT}/link.html?link_token={x}'
 
 def get_environment(wf):
-    environ = get_stored_data(wf, 'plaid_environment')
-    environ = DEFAULT_ENV if not environ else environ.decode('utf-8')
-    return environ
+    return wf.settings['environment'] if 'environment' in wf.settings else DEFAULT_ENV
 
 def ensure_icon(site, type, url=None):
     if not site: return None
@@ -34,17 +42,17 @@ def ensure_icon(site, type, url=None):
                 pass
     return icon if os.path.exists(icon) else None
 
-def get_cmd_output(wf, cmd):
+def get_cmd_output(cmd, wf=None):
     output = (subprocess.check_output(cmd, shell=True)).decode('utf-8')
-    wf.logger.debug(f'{cmd} : {output}')
+    if wf: wf.logger.debug(f'{cmd} : {output}')
     return output
     
 def open_url(wf, url):
     wf.logger.debug(f'opening url in Safari... {url}')
-    get_cmd_output(wf, f'open -a Safari "{url}"')
+    get_cmd_output(f'open -a Safari "{url}"', wf)
     
 def get_current_url(wf):
-    url = get_cmd_output(wf, "osascript -e 'tell application \"Safari\" to get URL of front document'")
+    url = get_cmd_output("osascript -e 'tell application \"Safari\" to get URL of front document'", wf)
     wf.logger.debug(f'current url is {url}')
     return url
 
@@ -56,7 +64,7 @@ def wait_for_public_token(wf):
     while(not done):
         tries = tries + 1
         url = get_current_url(wf)
-        done = (url and 'completed=true' in url) or tries > 300
+        done = (url and 'missing value' not in url and ('completed=true' in url or 'localhost' not in url)) or tries > 300
         sleep(1)
     if(url):
         parts = re.search('public_token=([^&]+)', url, re.IGNORECASE)
@@ -77,6 +85,12 @@ def get_stored_data(wf, name, default={}):
         pass
     return data if data else default
 
+def get_current_user(wf):
+    return wf.settings['user'] if 'user' in wf.settings else None
+
+def set_current_user(wf, user):
+    wf.settings['user'] = user
+
 def get_password(wf, name):
     try:
         items = wf.get_password(name)
@@ -87,3 +101,33 @@ def get_password(wf, name):
 
 def save_password(wf, name, value):
     wf.save_password(name, json.dumps(value))
+
+# global values are under env='global'
+# across user values are under user='config'
+def get_secure_value(wf, key, default=None, user=None, env=None):
+    user = user if user else get_current_user(wf)
+    env = env if env else get_environment(wf)
+    storage = get_password(wf, SECURE_STORE)
+    if env not in storage: return default
+    if user and user not in storage[env]: return default
+    store = storage[env][user] if user else storage[env]
+    if key not in store: return default
+    return store[key]
+
+# global values are under env='global'
+# across user values are under user='config'
+def set_secure_value(wf, key, value, user=None, env=None):
+    user = user if user else get_current_user(wf)
+    env = env if env else get_environment(wf)
+    storage = get_password(wf, SECURE_STORE)
+    if env not in storage: storage[env] = {}
+    if user and user not in storage[env]: storage[env][user] = {}
+    store = storage[env][user] if user else storage[env]
+    if key not in store: store[key] = {}
+    current = store[key]
+    if current != value:
+        store[key] = value
+        save_password(wf, SECURE_STORE, storage)   
+        
+def reset_secure_values(wf):
+    save_password(wf, SECURE_STORE, {}) 

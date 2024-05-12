@@ -4,7 +4,7 @@ import sys
 import argparse
 from workflow.workflow import MATCH_ATOM, MATCH_STARTSWITH, MATCH_SUBSTRING, MATCH_ALL, MATCH_INITIALS, MATCH_CAPITALS, MATCH_INITIALS_STARTSWITH, MATCH_INITIALS_CONTAIN
 from workflow import Workflow, ICON_NOTE, ICON_BURN, PasswordNotFound
-from common import get_stored_data, DB_FILE, ensure_icon, get_environment, get_password
+from common import get_stored_data, DB_FILE, ensure_icon, get_environment, get_protocol, get_secure_value, set_secure_value, get_current_user, ALL_ENV, ALL_USER
 from db import TxnDB
 import os.path
 from dateutil.parser import parse 
@@ -14,6 +14,7 @@ import json
 import urllib.parse
 
 log = None
+protos = ['https', 'http']
 environments = ['development', 'sandbox', 'production']
 chart_types = {'p': 'pie', 'd': 'doughnut', 'l': 'line', 'b': 'bar'}
 time_aggregates = {'d': 'day', 'w': 'week', 'm': 'month'}
@@ -192,7 +193,7 @@ def main(wf):
         'clientid': {
             'title': 'Set Client ID',
             'subtitle': 'Set client ID for Plaid',
-            'autocomplete': 'clientid',
+            'autocomplete': 'clientid ',
             'args': ' --clientid '+(words[1] if len(words)>1 else ''),
             'icon': "icons/ui/key.png",
             'valid': len(words) > 1
@@ -200,7 +201,7 @@ def main(wf):
         'secret': {
             'title': 'Set secret',
             'subtitle': 'Set secret for Plaid development environment',
-            'autocomplete': 'secret',
+            'autocomplete': 'secret ',
             'args': ' --secret '+(words[1] if len(words)>1 else ''),
             'icon': "icons/ui/password.png",
             'valid': len(words) > 1
@@ -208,7 +209,7 @@ def main(wf):
         'userid': {
             'title': 'Set User ID',
             'subtitle': 'Set user ID for Plaid',
-            'autocomplete': 'userid',
+            'autocomplete': 'userid ',
             'args': ' --userid '+(words[1] if len(words)>1 else ''),
             'icon': "icons/ui/username.png",
             'valid': len(words) > 1
@@ -216,7 +217,7 @@ def main(wf):
         'pubtoken': {
             'title': 'Set Public Token',
             'subtitle': 'Set public token for Plaid',
-            'autocomplete': 'pubtoken',
+            'autocomplete': 'pubtoken ',
             'args': ' --pubtoken '+(words[1] if len(words)>1 else ''),
             'icon': "icons/ui/key.png",
             'valid': len(words) > 1
@@ -228,6 +229,14 @@ def main(wf):
             'args': ' --environment '+(words[1] if len(words)>1 else ''),
             'icon': "icons/ui/choose.png",
             'valid': len(words) > 1 and words[1] in environments
+        },
+        'proto': {
+            'title': 'Set Link Server Protocol',
+            'subtitle': 'Choose HTTP(S) for link server',
+            'autocomplete': 'proto ',
+            'args': ' --proto '+(words[1] if len(words)>1 else ''),
+            'icon': "icons/ui/https.png",
+            'valid': len(words) > 1 and words[1] in protos
         },
         'act': {
             'title': 'Add an Account Filter',
@@ -321,6 +330,15 @@ def main(wf):
                 'options': environments,
                 'valid': True
         },
+        'proto': {
+                'name': 'protocol',
+                'title': lambda x: f"Use {x} for link server",
+                'subtitle': lambda x: f"Set protocol to {x}{'. NOTE: Browser will warn of not trusted site with https' if 'https' == x else ''}" if get_protocol(wf) != x else f"Current protocol is {x}",
+                'arg': lambda x: f"--proto {x}",
+                'suffix': ' ',
+                'options': protos,
+                'valid': True
+        },
         'dt': {
                 'name': 'date range',
                 'title': lambda x: f"{x}",
@@ -369,35 +387,32 @@ def main(wf):
 
     environ = get_environment(wf)
 
-    try:
-        client_id = wf.get_password('plaid_client_id')
-    except PasswordNotFound:  # API key has not yet been set
+    client_id = get_secure_value(wf, 'client_id', None, ALL_USER, ALL_ENV)
+    if not client_id:
         wf.add_item('No Client ID key set...',
                     'Please use pd clientid to set your Plaid Client ID.',
                     valid=False,
-                    icon=ICON_NOTE)
+                    icon="icons/ui/warning.png")
         wf.send_feedback()
         return 0
 
-    try:
-        secret = wf.get_password('plaid_secret')
-    except PasswordNotFound:  # mode has not yet been set
-        wf.add_item('No Client Secret key set...',
+    secret = get_secure_value(wf, 'secret', None, ALL_USER)
+    if not secret:
+        wf.add_item(f'No Client Secret key set for {environ}...',
                     'Please use pd secret to set your Plaid Client Secret.',
                     valid=False,
-                    icon=ICON_NOTE)
-        wf.send_feedback()
-        return 0
+                    icon="icons/ui/warning.png")
+#        wf.send_feedback()
+#        return 0
         
-    try:
-        user_id = wf.get_password('plaid_user_id')
-    except PasswordNotFound:
+    user_id = get_current_user(wf)
+    if not user_id:
         wf.add_item('No User ID key set...',
                     'Please use pd userid to set your User ID - can be anything you choose',
                     valid=False,
-                    icon=ICON_NOTE)
-        wf.send_feedback()
-        return 0
+                    icon="icons/ui/warning.png")
+#        wf.send_feedback()
+#        return 0
 
     # update query post extraction
     query = args.query
@@ -419,10 +434,7 @@ def main(wf):
     merchants = get_stored_data(wf, 'merchants')
     categories = get_stored_data(wf, 'categories')
     
-    try:
-        items = get_password(wf, 'plaid_items')
-    except PasswordNotFound:
-        items = None
+    items = get_secure_value(wf, 'items', None)
     if not items:
         wf.add_item('No Linked Financial Institutions Found...',
                     'Please use pd link to link your bank accounts',
@@ -436,8 +448,6 @@ def main(wf):
                     icon="icons/ui/empty.png")
 #        wf.send_feedback()
 #        return 0
-
-    log.debug(f" items are {items} and accounts are {accounts}")
 
     # If script was passed a query, use it to filter posts
     if query:
@@ -515,12 +525,9 @@ def main(wf):
                         icon=f"icons/ui/{length}.png"
                 )
         else:
-            db = TxnDB(DB_FILE, wf.logger)
-            try:
-                acct_id = wf.get_password('plaid_acct_id')
-            except:
-                acct_id = None
-            if acct_id: query = f"{query} act:{acct_id}"
+            db = TxnDB(wf.datafile(DB_FILE), wf.logger)
+            acct_filter = get_secure_value(wf, 'acct_filter', [])
+            if acct_filter: query = f"{query} act:{','.join(acct_filter)}"
             txns = db.get_results(query)
             if not txns:
                 if items and accounts:
