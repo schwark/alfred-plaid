@@ -3,12 +3,13 @@ import json
 from common import ensure_icon
 
 class Plaid:
-    def __init__(self, client_id, secret, user_id, environment='sandbox', logger=None):
+    def __init__(self, client_id, secret, user_id, environment='sandbox', logger=None, datadir=None):
         self.client_id = client_id
         self.secret = secret
         self.user_id = user_id
         self.environment = str(environment)
         self.logger = logger
+        self.datadir = datadir
         
     def debug(self, text):
         if(self.logger): self.logger.debug(text)
@@ -78,7 +79,7 @@ class Plaid:
             else:
                 bank = banks[result['item']['institution_id']]
             if bank: 
-                ensure_icon(bank['name'],'bank',bank['logo'] if 'logo' in bank and bank['logo'] else None)
+                ensure_icon(self.datadir, bank['name'],'bank',bank['logo'] if 'logo' in bank and bank['logo'] else None)
         if 'accounts' in result:
             if bank:
                 for i in range(len(result['accounts'])):
@@ -98,7 +99,7 @@ class Plaid:
                         'icon': txn['logo_url'] if 'logo_url' in txn else None,
                         'url': txn['website'] if 'website' in txn else None
                     }
-                ensure_icon(txn['merchant_name'],'merchant',txn['logo_url'])
+                ensure_icon(self.datadir, txn['merchant_name'],'merchant',txn['logo_url'])
             if 'category_id' in txn and txn['category_id']:
                 if txn['category_id'] not in categories:
                     categories[txn['category_id']] = {

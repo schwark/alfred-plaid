@@ -5,6 +5,7 @@ from workflow import Workflow, ICON_WEB, ICON_NOTE, ICON_BURN, ICON_SWITCH, ICON
 import json
 import os.path
 from urllib.request import urlretrieve
+import shutil
 
 SERVER_HOST='localhost'
 SERVER_PORT=8383
@@ -27,11 +28,21 @@ def get_link_func(wf):
 def get_environment(wf):
     return wf.settings['environment'] if 'environment' in wf.settings else DEFAULT_ENV
 
-def ensure_icon(site, type, url=None):
+def ensure_icon_dir(datadir, type):
+    dir = f'{datadir}/icons/{type}'
+    if not os.path.exists(dir):
+        if 'category' == type:
+            shutil.copytree(f'icons/{type}', f'{datadir}/icons/')
+        else:
+            os.makedirs(dir)
+    return dir
+
+def ensure_icon(datadir, site, type, url=None):
     if not site: return None
     site = site.lower().replace(r'[^a-z0-9]','')
     size = 64
-    icon = f'icons/{type}/{site}.png'
+    dir = ensure_icon_dir(datadir, type)
+    icon = f'{dir}/{site}.png'
     if not os.path.exists(icon):
         #url = url if url else f'https://icon.horse/icon/{site}.com'
         url = url if url else (f'https://www.google.com/s2/favicons?domain={site}.com&sz={size}' if 'category' != type else None)

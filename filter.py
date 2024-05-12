@@ -99,14 +99,14 @@ def get_acct_subtitle(acct):
             result = f"{result}|   limit: ${acct['balances']['limit']:,.2f} "
     return result
 
-def get_bank_icon(account, banks):
+def get_bank_icon(wf, account, banks):
     if not 'institution_id' in account or account['institution_id'] not in banks: return None
     bank = banks[account['institution_id']]
     name = bank['name']
     logo = bank['logo']
-    return ensure_icon(name, 'bank', logo)
+    return ensure_icon(wf.datadir, name, 'bank', logo)
 
-def get_category_icon(categories):
+def get_category_icon(wf, categories):
     cats = categories.lower().split(',')
     for i in range(len(cats), 0, -1):
         log.debug(cats)
@@ -114,11 +114,11 @@ def get_category_icon(categories):
         words = re.split(r'\s+|\'|,', cat)
         for i in range(len(words),0,-1):
             substr = ''.join(words[0:i])
-            icon = f'icons/category/{substr}.png'
+            icon = f'{wf.datadir}/icons/category/{substr}.png'
             if os.path.exists(icon):
                 return icon  
               
-def get_txn_icon(txn, accounts, banks, merchants, categories):
+def get_txn_icon(wf, txn, accounts, banks, merchants, categories):
     account = accounts[txn['account_id']]
     if 'institution_id' in account:
         bank = banks[account['institution_id']]
@@ -127,11 +127,11 @@ def get_txn_icon(txn, accounts, banks, merchants, categories):
         bank = None
     merchant = txn['merchant']
     merchant_url = merchants[txn['merchant_entity_id']]['icon'] if 'merchant_entity_id' in txn and txn['merchant_entity_id'] and txn['merchant_entity_id'] in merchants else None
-    micon = ensure_icon(merchant, 'merchant', merchant_url)
+    micon = ensure_icon(wf.datadir, merchant, 'merchant', merchant_url)
     category_url = categories[txn['category_id']]['icon'] if 'category_id' in txn and txn['category_id'] and txn['category_id'] in categories else None
-    cicon = get_category_icon(txn['categories'])
-    caticon = ensure_icon(txn['category_id'], 'category', category_url) if not cicon else None
-    bicon = ensure_icon(bank, 'bank') if not cicon and not caticon else None
+    cicon = get_category_icon(wf, txn['categories'])
+    caticon = ensure_icon(wf.datadir, txn['category_id'], 'category', category_url) if not cicon else None
+    bicon = ensure_icon(wf.datadir, bank, 'bank') if not cicon and not caticon else None
     icon = micon if micon else (cicon if cicon else caticon if caticon else bicon)
     return icon
 
@@ -508,7 +508,7 @@ def main(wf):
                                 subtitle=get_acct_subtitle(acct),
                                 arg=' --acctid '+acct['account_id'],
                                 valid=True,
-                                icon=get_bank_icon(acct, banks)
+                                icon=get_bank_icon(wf, acct, banks)
                         )                
         elif re.match(r'dt\:[^\s]*$', query):
             found = re.compile('dt\:([^\s]+)').search(query)
@@ -554,7 +554,7 @@ def main(wf):
                             subtitle=f"{txn['categories']}   {txn['txntext']}",
                             arg=' --txnid '+txn['transaction_id'],
                             valid=True,
-                            icon=get_txn_icon(txn, accounts, banks, merchants, categories)
+                            icon=get_txn_icon(wf, txn, accounts, banks, merchants, categories)
                     )
 
         # Send the results to Alfred as XML

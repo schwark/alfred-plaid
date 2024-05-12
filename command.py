@@ -181,7 +181,7 @@ def main(wf):
         error('Secret not found')
         return 0
         
-    plaid = Plaid(client_id=client_id, secret=secret, user_id=user_id, environment=environ,logger=wf.logger)
+    plaid = Plaid(client_id=client_id, secret=secret, user_id=user_id, environment=environ,logger=wf.logger, datadir=wf.datadir)
             
     # Update items if that is passed in
     if args.update:
