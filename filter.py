@@ -4,7 +4,7 @@ import sys
 import argparse
 from workflow.workflow import MATCH_ATOM, MATCH_STARTSWITH, MATCH_SUBSTRING, MATCH_ALL, MATCH_INITIALS, MATCH_CAPITALS, MATCH_INITIALS_STARTSWITH, MATCH_INITIALS_CONTAIN
 from workflow import Workflow, ICON_NOTE, ICON_BURN, PasswordNotFound
-from common import get_stored_data, DB_FILE, ensure_icon, get_environment, get_protocol, get_secure_value, set_secure_value, get_current_user, ALL_ENV, ALL_USER
+from common import get_stored_data, ensure_icon, get_environment, get_protocol, get_secure_value, set_secure_value, get_current_user, ALL_ENV, ALL_USER, get_db_file
 from db import TxnDB
 import os.path
 from dateutil.parser import parse 
@@ -525,7 +525,7 @@ def main(wf):
                         icon=f"icons/ui/{length}.png"
                 )
         else:
-            db = TxnDB(wf.datafile(DB_FILE), wf.logger)
+            db = TxnDB(get_db_file(wf), wf.logger)
             acct_filter = get_secure_value(wf, 'acct_filter', [])
             if acct_filter: query = f"{query} act:{','.join(acct_filter)}"
             txns = db.get_results(query)

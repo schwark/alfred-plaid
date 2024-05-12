@@ -11,12 +11,14 @@ SERVER_HOST='localhost'
 SERVER_PORT=8383
 SERVER_PROTOCOL='http'
 DEFAULT_ENV = 'sandbox'
-DB_FILE = 'txns.db'
 SECURE_STORE = 'plaid_secure'
 ALL_ENV = 'global'
 ALL_USER = 'config'
 CERT_FILE = 'cert.pem'
 KEY_FILE = 'key.pem'
+
+def get_db_file(wf):
+    return wf.datafile(get_environment(wf)+'.db')
 
 def get_protocol(wf):
     return wf.settings['protocol'] if 'protocol' in wf.settings else SERVER_PROTOCOL

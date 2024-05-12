@@ -6,7 +6,7 @@ from workflow import Workflow, PasswordNotFound
 from common import qnotify, error, get_stored_data, open_url, wait_for_public_token, get_link_func, CERT_FILE, KEY_FILE
 from plaid import Plaid
 from server import run_server, stop_server
-from common import DB_FILE, get_environment, get_secure_value, set_secure_value, set_current_user, ALL_ENV, ALL_USER, reset_secure_values, get_current_user
+from common import get_environment, get_secure_value, set_secure_value, set_current_user, ALL_ENV, ALL_USER, reset_secure_values, get_current_user, get_db_file
 from db import TxnDB
 import os
 
@@ -25,7 +25,7 @@ def add_item(wf, item):
 
 def update_items(wf, plaid):
     log.debug('updating items...')
-    db = TxnDB(wf.datafile(DB_FILE), wf.logger)
+    db = TxnDB(get_db_file(wf), wf.logger)
     
     items = get_secure_value(wf, 'items', {})
     accounts = get_stored_data(wf, 'accounts', {})
@@ -92,10 +92,10 @@ def main(wf):
     if args.clear or args.reinit:
         wf.reset()
         try:
-            os.remove(wf.datafile(DB_FILE))
+            os.remove(get_db_file(wf))
         except OSError:
             pass
-        qnotify('Plaid', 'Transaction Data Cleared')
+        qnotify('Plaid', f'{get_environment(wf).capitalize()} Transaction Data Cleared')
 
     # Reinitialize if necessary
     if args.reinit:
