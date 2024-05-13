@@ -77,10 +77,10 @@
         window.location.href = window.location.href+'&public_token='+public_token+'&completed=true'
       },
       onExit: function(err, metadata) {
-        console.log('onexit invoked');
+        console.log('onexit invoked', metadata);
       },
       onEvent: function(eventName, metadata) {
-        console.log('event name is:', eventName);
+        console.log('event name is:', eventName, metadata);
       }
     });
     $('#link-button').on('click', function(e) { handler.open() });
