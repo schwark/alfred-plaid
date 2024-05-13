@@ -493,6 +493,7 @@ def main(wf):
                             icon="icons/ui/empty.png"
                     )
             else:
+                acct_filter = get_secure_value(wf, 'acct_filter', [])
                 wf.add_item(
                             title="All Accounts",
                             subtitle="Remove account filter - set to all accounts",
@@ -502,11 +503,12 @@ def main(wf):
                 )   
                 log.debug(matches)             
                 for acct in matches:
+                    filtered = True if acct['account_id'] in acct_filter else False
                     name = acct['name'] if 'name' in acct and acct['name'] else acct['official_name']
                     wf.add_item(
                                 title=name,
-                                subtitle=get_acct_subtitle(acct),
-                                arg=' --acctid '+acct['account_id'],
+                                subtitle=('filtered | ' if filtered else '')+get_acct_subtitle(acct),
+                                arg=' --acctid '+acct['account_id']+('-' if filtered else ''),
                                 valid=True,
                                 icon=get_bank_icon(wf, acct, banks)
                         )                

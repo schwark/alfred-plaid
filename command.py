@@ -117,17 +117,20 @@ def main(wf):
 
     if args.acctid:  # Script was passed an API key
         log.debug("saving filtered account id "+args.acctid)
+        acct_id = args.acctid[:-1] if '-' == args.acctid[-1] else args.acctid
         accounts = get_stored_data(wf, 'accounts', {})
-        if 'all' == args.acctid:
+        if 'all' == acct_id:
             set_secure_value(wf, 'acct_filter', [])
             qnotify('Plaid', 'Account Filter Removed')
-        elif args.acctid in accounts:
+        elif acct_id in accounts:
             acct_filter = get_secure_value(wf, 'acct_filter', [])
-            if args.acctid not in acct_filter:
-                acct_filter.append(args.acctid)
-                set_secure_value(wf, 'acct_filter', acct_filter)
+            if acct_id not in acct_filter:
+                acct_filter.append(acct_id)
+            else:
+                acct_filter.remove(acct_id)
+            set_secure_value(wf, 'acct_filter', acct_filter)
             name = ','.join([accounts[x]['name'] for x in acct_filter])
-            qnotify('Plaid', 'Account Filter: '+name)
+            qnotify('Plaid', 'Account Filter: '+name if name else 'Account Filter Removed')
         else:
             qnotify('Plaid', 'Account Filter Failed')
         return 0  # 0 means script exited cleanly
