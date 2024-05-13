@@ -28,7 +28,7 @@ def update_items(wf, plaid):
     db = TxnDB(get_db_file(wf), wf.logger)
     
     items = get_secure_value(wf, 'items', {})
-    accounts = get_stored_data(wf, 'accounts', {})
+    accounts = get_secure_value(wf, 'accounts', {})
     merchants = get_stored_data(wf, 'merchants', {})
     categories = get_stored_data(wf, 'categories', {})
     banks = get_stored_data(wf, 'banks', {})
@@ -46,7 +46,7 @@ def update_items(wf, plaid):
         for t in txns:
             #log.debug(t)
             db.save_txn(t)
-    wf.store_data('accounts', accounts)
+    set_secure_value(wf, 'accounts', accounts)
     wf.store_data('merchants', merchants)
     wf.store_data('categories', categories)
     wf.store_data('banks', banks)
@@ -118,7 +118,7 @@ def main(wf):
     if args.acctid:  # Script was passed an API key
         log.debug("saving filtered account id "+args.acctid)
         acct_id = args.acctid[:-1] if '-' == args.acctid[-1] else args.acctid
-        accounts = get_stored_data(wf, 'accounts', {})
+        accounts = get_secure_value(wf, 'accounts', {})
         if 'all' == acct_id:
             set_secure_value(wf, 'acct_filter', [])
             qnotify('Plaid', 'Account Filter Removed')
@@ -214,8 +214,8 @@ def main(wf):
                 item['access_token'] = result['access_token']
                 item['item_id'] = result['item_id']
                 add_item(wf, item)
-                result = update_items(wf, plaid)
                 qnotify('Plaid', 'Saved Item' if 'access_token' in result else 'Item Save Failed')
+                result = update_items(wf, plaid)
             return 0  # 0 means script exited cleanly
         
 if __name__ == u"__main__":

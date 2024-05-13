@@ -429,7 +429,7 @@ def main(wf):
             autocomplete='workflow:update',
             icon="icons/ui/update.png")
 
-    accounts = get_stored_data(wf, 'accounts')
+    accounts = get_secure_value(wf, 'accounts', {})
     banks = get_stored_data(wf, 'banks')
     merchants = get_stored_data(wf, 'merchants')
     categories = get_stored_data(wf, 'categories')
