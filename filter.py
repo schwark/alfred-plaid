@@ -127,7 +127,7 @@ def get_txn_icon(wf, txn, accounts, banks, merchants, categories):
         bank = None
     merchant = txn['merchant']
     merchant_url = merchants[txn['merchant_entity_id']]['icon'] if 'merchant_entity_id' in txn and txn['merchant_entity_id'] and txn['merchant_entity_id'] in merchants else None
-    merchant_name = merchant.lower().replace(r'\s|\'\-', '') if merchant else None
+    merchant_name = re.sub(r'[^a-z0-9]+', '', merchant.lower()) if merchant else None
     if merchant_name:
         micon = ensure_icon(wf.datadir, merchant, 'merchant', merchant_url) if not os.path.exists(f"icons/merchant/{merchant_name}.png") else f"icons/merchant/{merchant_name}.png"
     else:
