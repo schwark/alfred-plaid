@@ -39,10 +39,11 @@ class Plaid:
         result = self.api(path="/categories/get", data={}, no_auth=True)
         if 'categories' in result:
             for category in result['categories']:
+                id = int(category['category_id'])
                 icon = get_category_icon(wf, category['hierarchy'])
                 wf.logger.debug(f"{category['hierarchy']}:  {icon}")
-                categories[category['category_id']] = {
-                    'id': category['category_id'],
+                categories[id] = {
+                    'id': id,
                     'list': category['hierarchy'],
                     'icon': icon
                 }
@@ -121,14 +122,6 @@ class Plaid:
                         'categories': None
                     }
                 ensure_icon(self.datadir, txn['merchant_name'],'merchant',txn['logo_url'])
-            if 'category_id' in txn and txn['category_id']:
-                if txn['category_id'] not in categories:
-                    categories[txn['category_id']] = {
-                        'id': txn['category_id'],
-                        'list': txn['category'],
-                        'icon': None
-                    }
-                #ensure_icon(txn['category_id'],'category',txn['personal_finance_category_icon_url'])
         return merchants, categories
 
     def get_transactions(self, item, merchants, categories):

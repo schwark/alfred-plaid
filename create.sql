@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS transactions(
     merchant_id text,
     institution text,
     txntext text,
-    category_id text,
+    category_id integer,
     categories text
 );
 CREATE VIRTUAL TABLE IF NOT EXISTS txn_fts USING fts5(

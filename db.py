@@ -43,7 +43,7 @@ class TxnDB:
         post = datetime.strptime(txn['date'], '%Y-%m-%d')
         amount = txn['amount']
         categories = ','.join(txn['category'])
-        category_id = txn['category_id']
+        category_id = int(txn['category_id']) if txn['category_id'] else 0
         currency = txn['iso_currency_code']
         merchant = txn['merchant_name']
         merchant_id = txn['merchant_entity_id']
@@ -151,7 +151,13 @@ class TxnDB:
             dfro, dto = self.parse_dt(dt)
             date_from = dfro if dfro and not date_from else date_from
             date_to = dto if dto and not date_to else date_to
-        
+        if cat:
+            pat = re.compile(r'([0-9]*)([1-9])(0+)')
+            groups = pat.match(str(cat))
+            cat = int(cat)
+            max_cat = int(groups[1]+str(int(groups[2])+1)+groups[3]) if groups else cat+1
+        else:
+            max_cat = 0
         sort = sort if sort else 'post'
         order = order if order else 'DESC'
         dtf = f" AND post >= :dtf" if date_from else ''
@@ -159,10 +165,10 @@ class TxnDB:
         amtf = f" AND amount >= :amtf" if amt_from else ''
         amtt = f" AND amount <= :amtt" if amt_to else ''
         acctq = f" AND account_id IN (:acct)" if acct else ''
-        catq = f" AND category_id = :cat" if cat else ''
+        catq = f" AND category_id >= :cat AND category_id < :max_cat" if cat else ''
         termsearch = f"id IN (SELECT rowid from txn_fts WHERE txn_fts MATCH :query ORDER BY rank DESC)"
         query = ' '.join([x+'*' if ':' not in x else '' for x in query.strip().split()]).strip()
-        params = {'query': query, 'amtt': amt_to, 'amtf': amt_from, 'dtt': date_to, 'dtf': date_from, 'srt': sort, 'ord': order, 'acct': acct, 'cat': cat}
+        params = {'query': query, 'amtt': amt_to, 'amtf': amt_from, 'dtt': date_to, 'dtf': date_from, 'srt': sort, 'ord': order, 'acct': acct, 'cat': cat, 'max_cat': max_cat}
         termsearch = termsearch if query else 'id IS NOT NULL'
         self.debug(params)
         if not (query or dtf or dtt or amtf or amtt or catq): return None

@@ -123,8 +123,9 @@ def get_txn_icon(wf, txn, accounts, banks, merchants, categories):
     merchant = txn['merchant']
     merchant_url = merchants[txn['merchant_entity_id']]['icon'] if 'merchant_entity_id' in txn and txn['merchant_entity_id'] and txn['merchant_entity_id'] in merchants else None
     micon = ensure_icon(wf.datadir, merchant, 'merchant', merchant_url)
-    log.debug(f"{txn['category_id']}, {categories[txn['category_id']]['icon']}")
-    cicon = categories[txn['category_id']]['icon'] if (txn['category_id'] and (txn['category_id'] in categories) and ('icon' in categories[txn['category_id']])) else None
+    category_id = int(txn['category_id'])
+    log.debug(f"{category_id}, {categories[category_id]['icon']}")
+    cicon = categories[category_id]['icon'] if (category_id and (category_id in categories) and ('icon' in categories[category_id])) else None
     bicon = ensure_icon(wf.datadir, bank, 'bank') if not cicon else None
     icon = micon if micon else (cicon if cicon else bicon)
     return icon
