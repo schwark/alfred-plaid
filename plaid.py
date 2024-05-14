@@ -41,7 +41,7 @@ class Plaid:
             for category in result['categories']:
                 id = int(category['category_id'])
                 icon = get_category_icon(wf, category['hierarchy'])
-                wf.logger.debug(f"{category['hierarchy']}:  {icon}")
+                #wf.logger.debug(f"{category['hierarchy']}:  {icon}")
                 categories[id] = {
                     'id': id,
                     'list': category['hierarchy'],

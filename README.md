@@ -75,6 +75,7 @@ amtt:<to-amount>        transactions with amounts less than or equal to this amo
 amtf:<from-amount>      transactions with amounts greater than or equal to this amount
 dt:<last-month>         a shortcut way of specifying dtf and dtt for some commons scenarios
 cat:<cat-id>            filter transactions by category - cat:<search-term> will show all available
+cht:                    add a charting link to the results of transactions
 ct:<p|d|b|l>            choose a chart type from pie, doughnut, bar or line
 ta:<d|w|m>              choose periods to chart over from day, week or month
 ma:<m|c>                choose a charting segment to total over from merchant or category for each transaction
@@ -82,7 +83,7 @@ ma:<m|c>                choose a charting segment to total over from merchant or
 
 ## Charting
 
-Any transaction query as above will show a link to a chart as the first result - hitting the `SHIFT` key (NO click - only tap `SHIFT` key) will popup the chart. The exact style of the chart can be customized using the `ct:`, `ta:`, and `ma:` modifiers to any transaction query.
+Any transaction query as above that includes `cht:` in the query will show a link to a chart as the first result - hitting the `SHIFT` key (NO click - only tap `SHIFT` key) will popup the chart. The exact style of the chart can be customized using the `ct:`, `ta:`, and `ma:` modifiers to any transaction query.
 
 ## Reinitialize
 

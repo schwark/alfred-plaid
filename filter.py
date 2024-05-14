@@ -6,12 +6,10 @@ from workflow.workflow import MATCH_ATOM, MATCH_STARTSWITH, MATCH_SUBSTRING, MAT
 from workflow import Workflow, ICON_NOTE, ICON_BURN, PasswordNotFound
 from common import get_stored_data, ensure_icon, get_environment, get_protocol, get_secure_value, set_secure_value, get_current_user, ALL_ENV, ALL_USER, get_db_file, get_category_icon
 from db import TxnDB
-import os.path
 from dateutil.parser import parse 
-from datetime import timedelta,datetime
+from datetime import timedelta, datetime
 import re
-import json
-import urllib.parse
+
 
 log = None
 protos = ['https', 'http']
@@ -27,25 +25,23 @@ chart_options = {
     'ct': 'b' # chart type
 }
 
-def format_post_date(dt):
-    format = '%b-%d'
-    this_year = datetime.now().year
-    given_date = parse(dt)
-    date_year = given_date.year
-    format = f"{format}-%y" if(date_year != this_year) else f"{format}   "
-    return given_date.strftime(format)
-    
+import json
+import urllib.parse
+from dateutil.parser import parse 
+
+
+
 def get_time_cut(dt, ta, ct):
     if ct in ['p', 'd']: return 'all'
     if 'd' == ta: return dt.strftime('%b-%d-%y')
     if 'w' == ta: return (dt - timedelta(days=dt.isoweekday() % 7)).strftime('%b-%d-%y')
     if 'm' == ta: return dt.replace(day=1,hour=0,minute=0,second=0).strftime('%b-%y')
 
-def create_chart(txns):
+def create_chart(txns): 
     ta = chart_options['ta']
     ma = chart_options['ma']
     ct = chart_options['ct']
-    
+       
     data = {}
     lines = ['Total'] if ct not in ['p','d'] else []
     min_date = None
@@ -93,6 +89,14 @@ def get_chart_url(txns):
     log.debug(url)
     return url
 
+def format_post_date(dt):
+    format = '%b-%d'
+    this_year = datetime.now().year
+    given_date = parse(dt)
+    date_year = given_date.year
+    format = f"{format}-%y" if(date_year != this_year) else f"{format}   "
+    return given_date.strftime(format)
+    
 def get_acct_subtitle(acct):
     result = ''
     if 'subtype' in acct:
@@ -124,7 +128,7 @@ def get_txn_icon(wf, txn, accounts, banks, merchants, categories):
     merchant_url = merchants[txn['merchant_entity_id']]['icon'] if 'merchant_entity_id' in txn and txn['merchant_entity_id'] and txn['merchant_entity_id'] in merchants else None
     micon = ensure_icon(wf.datadir, merchant, 'merchant', merchant_url)
     category_id = int(txn['category_id'])
-    log.debug(f"{category_id}, {categories[category_id]['icon']}")
+    #log.debug(f"{category_id}, {categories[category_id]['icon']}")
     cicon = categories[category_id]['icon'] if (category_id and (category_id in categories) and ('icon' in categories[category_id])) else None
     bicon = ensure_icon(wf.datadir, bank, 'bank') if not cicon else None
     icon = micon if micon else (cicon if cicon else bicon)
@@ -159,6 +163,12 @@ def main(wf):
     log.debug("args are "+str(args))
 
     words = args.query.split() if args.query else []
+    accounts = get_secure_value(wf, 'accounts', {})
+    banks = get_stored_data(wf, 'banks')
+    merchants = get_stored_data(wf, 'merchants')
+    categories = get_stored_data(wf, 'categories')
+    environ = get_environment(wf)
+
 
     config_commands = {
         'link': {
@@ -203,7 +213,7 @@ def main(wf):
         },
         'secret': {
             'title': 'Set secret',
-            'subtitle': 'Set secret for Plaid development environment',
+            'subtitle': f'Set secret for Plaid {environ} environment',
             'autocomplete': 'secret ',
             'args': ' --secret '+(words[1] if len(words)>1 else ''),
             'icon': "icons/ui/password.png",
@@ -211,7 +221,7 @@ def main(wf):
         },
         'userid': {
             'title': 'Set User ID',
-            'subtitle': 'Set user ID for Plaid',
+            'subtitle': f'Set user ID for Plaid {environ}',
             'autocomplete': 'userid ',
             'args': ' --userid '+(words[1] if len(words)>1 else ''),
             'icon': "icons/ui/username.png",
@@ -255,6 +265,14 @@ def main(wf):
             'autocomplete': 'cat:',
             'args': ' --catid '+(words[1] if len(words)>1 else ''),
             'icon': "icons/ui/categories.png",
+            'valid': False
+        },
+        'cht': {
+            'title': 'Add a chart to query results',
+            'subtitle': 'Add a chart option to query results',
+            'autocomplete': 'cht: ',
+            'args': ' --chtid '+(words[1] if len(words)>1 else ''),
+            'icon': "icons/ui/chart.png",
             'valid': False
         },
         'ct': {
@@ -330,11 +348,6 @@ def main(wf):
             'valid': True
         }
     }
-    
-    accounts = get_secure_value(wf, 'accounts', {})
-    banks = get_stored_data(wf, 'banks')
-    merchants = get_stored_data(wf, 'merchants')
-    categories = get_stored_data(wf, 'categories')
     
     config_options = {
         'env': {
@@ -412,7 +425,6 @@ def main(wf):
     # Check that we have an API key saved
     ####################################################################
 
-    environ = get_environment(wf)
 
     client_id = get_secure_value(wf, 'client_id', None, ALL_USER, ALL_ENV)
     if not client_id:
@@ -434,7 +446,7 @@ def main(wf):
         
     user_id = get_current_user(wf)
     if not user_id:
-        wf.add_item('No User ID key set...',
+        wf.add_item(f'No {get_environment(wf)} User set...',
                     'Please use pd userid to set your User ID - can be anything you choose',
                     valid=False,
                     icon="icons/ui/warning.png")
@@ -563,14 +575,16 @@ def main(wf):
                             icon="icons/ui/empty.png"
                     )
             else:
-                wf.add_item(
-                    title="Chart the transactions",
-                    subtitle=f"Highlight and tap SHIFT key for {chart_types[chart_options['ct']]} chart aggregated by {time_aggregates[chart_options['ta']]} and {merchant_aggregates[chart_options['ma']]}",
-                    valid=False,
-                    quicklookurl=get_chart_url(txns),
-                    icon='icons/ui/chart.png'
-                )                
-                for txn in txns:
+                if 'cht:' in query:
+                    wf.add_item(
+                        title="Chart the transactions",
+                        subtitle=f"Highlight and tap SHIFT key for {chart_types[chart_options['ct']]} chart aggregated by {time_aggregates[chart_options['ta']]} and {merchant_aggregates[chart_options['ma']]}",
+                        valid=False,
+                        quicklookurl=get_chart_url(txns),
+                        icon='icons/ui/chart.png'
+                    )
+                txn_list = txns[:30] if len(txns) > 30 else txns                
+                for txn in txn_list:
                     post = format_post_date(txn['post'])
                     merchant = txn['merchant'] if txn['merchant'] else txn['txntext']
                     merchant = merchant.ljust(50)

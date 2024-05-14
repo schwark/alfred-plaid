@@ -19,7 +19,7 @@ KEY_FILE = 'key.pem'
 
 def get_category_icon(wf, cats):
     for i in range(len(cats), 0, -1):
-        wf.logger.debug(cats)
+        #wf.logger.debug(cats)
         cat = cats[i-1]
         words = re.split(r'\s+|\'|,', cat)
         for i in range(len(words),0,-1):
@@ -113,10 +113,10 @@ def get_stored_data(wf, name, default={}):
     return data if data else default
 
 def get_current_user(wf):
-    return wf.settings['user'] if 'user' in wf.settings else None
+    return get_secure_value(wf, 'current_user', None, ALL_USER)
 
 def set_current_user(wf, user):
-    wf.settings['user'] = user
+    set_secure_value(wf, 'current_user', user, ALL_USER)
 
 def get_password(wf, name):
     try:

@@ -51,7 +51,7 @@ def update_items(wf, plaid):
         single = items[item_id]
         actlist = plaid.get_accounts(single, banks)
         for i in range(len(actlist)):
-            log.debug(actlist[i])
+            #log.debug(actlist[i])
             accounts[actlist[i]['account_id']] = actlist[i]
         txns = plaid.get_transactions(single, merchants, categories)
         for t in txns:
@@ -103,6 +103,7 @@ def main(wf):
     
     if args.clear or args.reinit:
         wf.reset()
+        set_secure_value(wf, 'accounts', {})
         try:
             os.remove(get_db_file(wf))
         except OSError:
@@ -151,7 +152,7 @@ def main(wf):
     if args.userid:  # Script was passed an API key
         log.debug("saving user id "+args.userid)
         set_current_user(wf, args.userid)
-        qnotify('Plaid', f'User is now {args.userid}')
+        qnotify('Plaid', f'{get_environment(wf)} user is now {args.userid}')
         return 0  # 0 means script exited cleanly
 
     # save Secret if that is passed in
@@ -188,7 +189,7 @@ def main(wf):
 
     user_id = get_current_user(wf)
     if not user_id:
-        error('User ID not found')
+        error(f'{get_environment(wf)} User ID not found')
         return 0
 
     secret = get_secure_value(wf, 'secret', None, ALL_USER)
