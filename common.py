@@ -26,8 +26,13 @@ def get_category_icon(wf, cats):
             substr = ''.join(words[0:i])
             if "s" == substr[-1]: substr = substr[:-1]
             icon = f'icons/category/{substr.lower()}.png'
-            if os.path.exists(icon): return icon  
-            #if os.path.exists(f'{wf.datadir}/{icon}'): return f'{wf.datadir}/{icon}'
+            if os.path.exists(icon): return icon
+        for i in range(len(words)):
+            substr = ''.join(words[-(i+1):])
+            if "s" == substr[-1]: substr = substr[:-1]
+            icon = f'icons/category/{substr.lower()}.png'
+            if os.path.exists(icon): return icon
+            
 
 def get_db_file(wf):
     return wf.datafile(get_environment(wf)+'.db')

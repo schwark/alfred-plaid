@@ -251,7 +251,7 @@ def main(wf):
         'cat': {
             'title': 'Choose a category',
             'subtitle': 'Choose a transaction category',
-            'autocomplete': 'cat: ',
+            'autocomplete': 'cat:',
             'args': ' --catid '+(words[1] if len(words)>1 else ''),
             'icon': "icons/ui/categories.png",
             'valid': False
@@ -358,7 +358,7 @@ def main(wf):
                 'name': 'date range',
                 'title': lambda x: f"{x}",
                 'subtitle': lambda x: f"Filter transactions within {x.lower()}",
-                'icon': lambda x: f"{x.split()[1]}",
+                'icon': lambda x: f"icons/ui/{x.split()[1]}.png",
                 'suffix': '\:',
                 'options': timeframes,
                 'id': lambda x: x.lower().replace(' ','-'),
@@ -366,13 +366,13 @@ def main(wf):
         },
         'cat': {
                 'name': 'categories',
-                'title': lambda x: f"{categories[x]['list'][-1]}",
-                'subtitle': lambda x: f"{' > '.join(categories[x]['list'])}",
-                'icon': lambda x: f"{categories[x]['icon']}",
+                'title': lambda x: f"{x['list'][-1]}",
+                'subtitle': lambda x: f"{' > '.join(x['list'])}",
+                'icon': lambda x: f"{x['icon']}",
                 'suffix': '\:',
                 'options': categories,
                 'filter_func': lambda x: f"{', '.join(categories[x]['list'])}",
-                'id': lambda x: x,
+                'id': lambda x: x if 'zzz' != x else None,
                 'valid': False            
         },
         'ct': {
@@ -485,8 +485,9 @@ def main(wf):
                 for item in matches:
                     name = item if is_array else config_options[opt]['options'][item]
                     id = config_options[opt]['id'](item) if 'id' in config_options[opt] else item
+                    if not id: continue
                     log.debug(name)
-                    icon = config_options[opt]['icon'](name) if 'icon' in config_options[opt] else name.lower().replace(' ','-')
+                    icon = config_options[opt]['icon'](name) if 'icon' in config_options[opt] else f"icons/ui/{name.lower().replace(' ','-')}.png"
                     suffix = suffix.replace("\\",'')
                     wf.add_item(
                             title=config_options[opt]['title'](name),
@@ -494,7 +495,7 @@ def main(wf):
                             autocomplete=f"{query}{opt}{suffix}{id} ",
                             arg=config_options[opt]['arg'](item) if 'arg' in config_options[opt] else '',
                             valid=config_options[opt]['valid'],
-                            icon=f"icons/ui/{icon}.png"
+                            icon=icon
                     )
             if found:
                 log.debug(f'found {term} with {opts}')
