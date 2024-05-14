@@ -583,7 +583,7 @@ def main(wf):
                         quicklookurl=get_chart_url(txns),
                         icon='icons/ui/chart.png'
                     )
-                txn_list = txns[:30] if len(txns) > 30 else txns                
+                txn_list = txns #[:30] if len(txns) > 30 else txns                
                 for txn in txn_list:
                     post = format_post_date(txn['post'])
                     merchant = txn['merchant'] if txn['merchant'] else txn['txntext']

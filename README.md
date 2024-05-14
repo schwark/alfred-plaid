@@ -102,5 +102,5 @@ An update notification should show up when an update is available, but if not in
 
 ## Acknowledgements
 
-Icons made by [Freepik](https://www.flaticon.com/authors/freepik) from [www.flaticon.com](https://www.flaticon.com)  
+Icons made by [Freepik](https://www.flaticon.com/authors/freepik) and by [Roundicons Premium](https://www.freepik.com/author/roundicons/icons/generic-color-lineal-color_1640576)> 
 Icons also from [IconFinder](https://www.iconfinder.com/)
