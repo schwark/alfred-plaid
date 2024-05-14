@@ -9,6 +9,7 @@ from db import TxnDB
 from dateutil.parser import parse 
 from datetime import timedelta, datetime
 import re
+import os
 
 
 log = None
@@ -126,7 +127,11 @@ def get_txn_icon(wf, txn, accounts, banks, merchants, categories):
         bank = None
     merchant = txn['merchant']
     merchant_url = merchants[txn['merchant_entity_id']]['icon'] if 'merchant_entity_id' in txn and txn['merchant_entity_id'] and txn['merchant_entity_id'] in merchants else None
-    micon = ensure_icon(wf.datadir, merchant, 'merchant', merchant_url)
+    merchant_name = merchant.lower().replace(r'\s|\'\-', '') if merchant else None
+    if merchant_name:
+        micon = ensure_icon(wf.datadir, merchant, 'merchant', merchant_url) if not os.path.exists(f"icons/merchant/{merchant_name}.png") else f"icons/merchant/{merchant_name}.png"
+    else:
+        micon = None
     category_id = int(txn['category_id'])
     #log.debug(f"{category_id}, {categories[category_id]['icon']}")
     cicon = categories[category_id]['icon'] if (category_id and (category_id in categories) and ('icon' in categories[category_id])) else None
