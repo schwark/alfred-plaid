@@ -26,6 +26,7 @@ def kill_server(request):
     
 routes = {
     '/link.html' : 'file',
+    '/oauth.html' : 'file',
     '/images/wallpaper.jpg' : 'file',
     '/images/alfred-plaid.png' : 'file',
     '/kill': kill_server

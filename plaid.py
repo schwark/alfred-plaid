@@ -1,6 +1,6 @@
 from workflow import web
 import json
-from common import ensure_icon
+from common import ensure_icon, get_protocol
 
 class Plaid:
     def __init__(self, client_id, secret, user_id, environment='sandbox', logger=None, datadir=None):
@@ -34,14 +34,20 @@ class Plaid:
             self.debug(str(r.json()))
         return result   
     
-    def get_link_token(self, item, update=False):
+    def get_link_token(self, item, proto='https', update=False):
         if not update and item and item.get('link_token'):
             data = {'link_token': item.get('link_token')}
             result = self.api(path="/link/token/get", data=data)
             if 'link_token' in result:
                 item['link_token'] = result['link_token']
-                return result['link_token'] 
-        data = {"client_name": "Alfred Plaid Search", "country_codes": ["US"], "language": "en", "user": {"client_user_id": self.user_id}}
+                return result['link_token']
+        data = {
+            "client_name": "Alfred Plaid Search", 
+            "country_codes": ["US"], 
+            "language": "en", 
+            "redirect_uri": f"{proto}://localhost:8383/oauth.html",
+            "user": {"client_user_id": self.user_id}
+        }
         products = {"products": ["transactions"]}
         access = {"access_token": item.get('access_token')}
         if(update and item.get('access_token')):

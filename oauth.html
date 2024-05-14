@@ -13,6 +13,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     .outer { justify-self: center; margin: 20% auto 120px auto; width: 60%; ; font-family: 'Roboto', sans-serif;} a { text-decoration: underline; } li { padding-left: 1rem;}
+    #showtoken {visibility: hidden;}
   </style>
 </head>
 <body style="background-color:#B1EEFC;">
@@ -69,10 +70,14 @@
       $('#showtoken').hide()
     }
   });
-    localStorage.setItem('linkToken', params['link_token'])
-    var handler = Plaid.create({
-      token: params['link_token'],
-      onSuccess: function(public_token, metadata) {
+
+  var linkToken = localStorage.getItem("link_token");
+  var handler = Plaid.create({
+      token: linkToken,
+      // pass in the received redirect URI, which contains an OAuth state ID parameter that is required to
+      // re-initialize Link
+      receivedRedirectUri: window.location.href,
+      onSuccess: function (public_token) {
         console.log('public token is:', public_token);
         console.log('metadata is:', metadata);
         window.location.href = window.location.href+'&public_token='+public_token+'&completed=true'
@@ -84,7 +89,7 @@
         console.log('event name is:', eventName, metadata);
       }
     });
-    $('#link-button').on('click', function(e) { handler.open() });
+    handler.open();
   })(jQuery);
   </script>
 </body>

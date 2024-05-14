@@ -6,7 +6,7 @@ from workflow import Workflow, PasswordNotFound
 from common import qnotify, error, get_stored_data, open_url, wait_for_public_token, get_link_func, CERT_FILE, KEY_FILE
 from plaid import Plaid
 from server import run_server, stop_server
-from common import get_environment, get_secure_value, set_secure_value, set_current_user, ALL_ENV, ALL_USER, reset_secure_values, get_current_user, get_db_file
+from common import get_environment, get_secure_value, set_secure_value, set_current_user, ALL_ENV, ALL_USER, reset_secure_values, get_current_user, get_db_file, get_protocol
 from db import TxnDB
 import os
 
@@ -199,9 +199,10 @@ def main(wf):
     if args.link:
         item = {}
         try:
+            proto = get_protocol(wf)
             log.debug("trying to link new item...")
             run_server(wf)
-            link_token = plaid.get_link_token(item)
+            link_token = plaid.get_link_token(item, proto)
             log.debug(f'link token is {link_token}')
             open_url(wf, get_link_func(wf)(link_token))
             public_token = wait_for_public_token(wf)
