@@ -40,6 +40,13 @@ pd update
 ```
 This should be needed once a day or as needed - this updates the local cache of all the transactions
 
+## Category Update
+
+```
+pd upcat
+```
+This should be needed once a month or as needed - this updates the local cache of all the categories
+
 ## Account Details and Filtering
 
 ```
@@ -57,7 +64,7 @@ The environment should be set to production, but using Sandbox will allow you to
 ## Basic Transaction queries
 
 ```
-pd <dt:(this|last)-(week|month|quarter|half|year)?> <dtf:from-date?> <dtt:to-date?> <amtt:to-amount?> <amtf:from-amount?> <ct:p(ie)|(d)oughnut|b(ar)|l(ine)> <ta:d(ay)|w(eek)|m(onth)> <ma:m(erchant)|c(ategory)> <search-term> 
+pd <dt:(this|last)-(week|month|quarter|half|year)?> <dtf:from-date?> <dtt:to-date?> <amtt:to-amount?> <amtf:from-amount?> <ct:p(ie)|(d)oughnut|b(ar)|l(ine)> <ta:d(ay)|w(eek)|m(onth)> <ma:m(erchant)|c(ategory)> <cat:cat-id> <search-term> 
 ```
 The search term is the only required entry, further filtering is possible by using modifiers. All those additional fiters are optional. If any of the other modifiers are specified, the search term is also optional
 
@@ -67,6 +74,7 @@ dtt:<to-date>           transactions on or before this date
 amtt:<to-amount>        transactions with amounts less than or equal to this amount
 amtf:<from-amount>      transactions with amounts greater than or equal to this amount
 dt:<last-month>         a shortcut way of specifying dtf and dtt for some commons scenarios
+cat:<cat-id>           filter transactions by category - cat:<search-term> will show all available
 ct:<p|d|b|l>            choose a chart type from pie, doughnut, bar or line
 ta:<d|w|m>              choose periods to chart over from day, week or month
 ma:<m|c>                choose a charting segment to total over from merchant or category for each transaction
