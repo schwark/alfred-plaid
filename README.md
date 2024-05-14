@@ -64,7 +64,8 @@ The environment should be set to production, but using Sandbox will allow you to
 ## Basic Transaction queries
 
 ```
-pd <dt:(this|last)-(week|month|quarter|half|year)?> <dtf:from-date?> <dtt:to-date?> <amtt:to-amount?> <amtf:from-amount?> <ct:p(ie)|(d)oughnut|b(ar)|l(ine)> <ta:d(ay)|w(eek)|m(onth)> <ma:m(erchant)|c(ategory)> <cat:cat-id> <search-term> 
+pd <dt:(this|last)-(week|month|quarter|half|year)?> <dtf:from-date?> <dtt:to-date?> <amtt:to-amount?> <amtf:from-amount?> <cht:?>
+<ct:p(ie)|(d)oughnut|b(ar)|l(ine)?> <ta:d(ay)|w(eek)|m(onth)?> <ma:m(erchant)|c(ategory)?> <cat:cat-id?> <search-term> 
 ```
 The search term is the only required entry, further filtering is possible by using modifiers. All those additional fiters are optional. If any of the other modifiers are specified, the search term is also optional
 
