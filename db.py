@@ -146,6 +146,7 @@ class TxnDB:
         query, order = self.extract_filter(query, 'ord', 'text')
         query, acct = self.extract_filter(query, 'act', 'text')
         query, dt = self.extract_filter(query, 'dt', 'text')
+        query, cat = self.extract_filter(query, 'cat', 'text')
         if dt:
             dfro, dto = self.parse_dt(dt)
             date_from = dfro if dfro and not date_from else date_from
@@ -158,12 +159,13 @@ class TxnDB:
         amtf = f" AND amount >= :amtf" if amt_from else ''
         amtt = f" AND amount <= :amtt" if amt_to else ''
         acctq = f" AND account_id IN (:acct)" if acct else ''
+        catq = f" AND category_id = :cat" if cat else ''
         termsearch = f"id IN (SELECT rowid from txn_fts WHERE txn_fts MATCH :query ORDER BY rank DESC)"
         query = ' '.join([x+'*' if ':' not in x else '' for x in query.strip().split()]).strip()
-        params = {'query': query, 'amtt': amt_to, 'amtf': amt_from, 'dtt': date_to, 'dtf': date_from, 'srt': sort, 'ord': order, 'acct': acct}
+        params = {'query': query, 'amtt': amt_to, 'amtf': amt_from, 'dtt': date_to, 'dtf': date_from, 'srt': sort, 'ord': order, 'acct': acct, 'cat': cat}
         termsearch = termsearch if query else 'id IS NOT NULL'
         self.debug(params)
-        if not (query or dtf or dtt or amtf or amtt): return None
+        if not (query or dtf or dtt or amtf or amtt or catq): return None
             
         # Search!
         start = time()
@@ -180,7 +182,7 @@ class TxnDB:
             sql = f"""
                     SELECT transaction_id, account_id, txntext, subtype, merchant, merchant_id, post, currency, amount, category_id, categories 
                     FROM transactions 
-                    WHERE {termsearch}{dtt}{dtf}{amtt}{amtf}{acctq} ORDER BY {sort} {order}"""
+                    WHERE {termsearch}{dtt}{dtf}{amtt}{amtf}{catq}{acctq} ORDER BY {sort} {order}"""
             self.debug(sql)
             cursor.execute(sql, params, )
             results = cursor.fetchall()
