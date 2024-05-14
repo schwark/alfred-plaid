@@ -10,7 +10,9 @@ from dateutil.parser import parse
 from datetime import timedelta, datetime
 import re
 import os
-
+import json
+import urllib.parse
+from dateutil.parser import parse 
 
 log = None
 protos = ['https', 'http']
@@ -25,12 +27,6 @@ chart_options = {
     'ma': 'm', # merchant/category aggregation
     'ct': 'b' # chart type
 }
-
-import json
-import urllib.parse
-from dateutil.parser import parse 
-
-
 
 def get_time_cut(dt, ta, ct):
     if ct in ['p', 'd']: return 'all'
