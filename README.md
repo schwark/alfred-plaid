@@ -74,7 +74,7 @@ dtt:<to-date>           transactions on or before this date
 amtt:<to-amount>        transactions with amounts less than or equal to this amount
 amtf:<from-amount>      transactions with amounts greater than or equal to this amount
 dt:<last-month>         a shortcut way of specifying dtf and dtt for some commons scenarios
-cat:<cat-id>           filter transactions by category - cat:<search-term> will show all available
+cat:<cat-id>            filter transactions by category - cat:<search-term> will show all available
 ct:<p|d|b|l>            choose a chart type from pie, doughnut, bar or line
 ta:<d|w|m>              choose periods to chart over from day, week or month
 ma:<m|c>                choose a charting segment to total over from merchant or category for each transaction
