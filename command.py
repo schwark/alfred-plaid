@@ -22,6 +22,15 @@ def add_item(wf, item):
     items = get_secure_value(wf, 'items', {})
     items[item['item_id']] = item
     set_secure_value(wf, 'items', items)
+    
+def update_categories(wf, plaid):
+    log.debug('updating categories...')
+    categories = get_stored_data(wf, 'categories', {})
+    newcats = plaid.get_categories(wf)
+    categories = {**categories, **newcats}
+    categories['zzz'] = {'id': 'zzz', 'list':[], 'icon': None}
+    wf.store_data('categories', categories)
+    return categories
 
 def update_items(wf, plaid):
     log.debug('updating items...')
@@ -32,6 +41,8 @@ def update_items(wf, plaid):
     merchants = get_stored_data(wf, 'merchants', {})
     categories = get_stored_data(wf, 'categories', {})
     banks = get_stored_data(wf, 'banks', {})
+    if 'zzz' not in categories:
+        categories = update_categories(wf, plaid)
     if not items:
         log.debug('No items found. Please add items first..')
         qnotify('Plaid', 'No Items Found!')
@@ -70,6 +81,7 @@ def main(wf):
     # value to 'apikey' (dest). This will be called from a separate "Run Script"
     # action with the API key
     parser.add_argument('--update', dest='update', action='store_true', default=False)
+    parser.add_argument('--upcat', dest='upcat', action='store_true', default=False)
     parser.add_argument('--link', dest='link', action='store_true', default=False)
     parser.add_argument('--kill', dest='kill', action='store_true', default=False)
     # reinitialize 
@@ -190,6 +202,12 @@ def main(wf):
     if args.update:
         result = update_items(wf, plaid)
         message = 'Accounts & Transactions updated' if result else 'Update failed'
+        qnotify('Plaid', message)
+        return 0  # 0 means script exited cleanly
+    
+    if args.upcat:
+        result = update_categories(wf, plaid)
+        message = 'Categories updated' if result else 'Update failed'
         qnotify('Plaid', message)
         return 0  # 0 means script exited cleanly
     

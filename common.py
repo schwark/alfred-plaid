@@ -17,6 +17,18 @@ ALL_USER = 'config'
 CERT_FILE = 'cert.pem'
 KEY_FILE = 'key.pem'
 
+def get_category_icon(wf, cats):
+    for i in range(len(cats), 0, -1):
+        wf.logger.debug(cats)
+        cat = cats[i-1]
+        words = re.split(r'\s+|\'|,', cat)
+        for i in range(len(words),0,-1):
+            substr = ''.join(words[0:i])
+            if "s" == substr[-1]: substr = substr[:-1]
+            icon = f'icons/category/{substr.lower()}.png'
+            if os.path.exists(icon): return icon  
+            #if os.path.exists(f'{wf.datadir}/{icon}'): return f'{wf.datadir}/{icon}'
+
 def get_db_file(wf):
     return wf.datafile(get_environment(wf)+'.db')
 

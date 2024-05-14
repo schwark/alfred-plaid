@@ -4,11 +4,11 @@ import sys
 import argparse
 from workflow.workflow import MATCH_ATOM, MATCH_STARTSWITH, MATCH_SUBSTRING, MATCH_ALL, MATCH_INITIALS, MATCH_CAPITALS, MATCH_INITIALS_STARTSWITH, MATCH_INITIALS_CONTAIN
 from workflow import Workflow, ICON_NOTE, ICON_BURN, PasswordNotFound
-from common import get_stored_data, ensure_icon, get_environment, get_protocol, get_secure_value, set_secure_value, get_current_user, ALL_ENV, ALL_USER, get_db_file
+from common import get_stored_data, ensure_icon, get_environment, get_protocol, get_secure_value, set_secure_value, get_current_user, ALL_ENV, ALL_USER, get_db_file, get_category_icon
 from db import TxnDB
 import os.path
 from dateutil.parser import parse 
-from datetime import timedelta
+from datetime import timedelta,datetime
 import re
 import json
 import urllib.parse
@@ -27,7 +27,14 @@ chart_options = {
     'ct': 'b' # chart type
 }
 
-
+def format_post_date(dt):
+    format = '%b-%d'
+    this_year = datetime.now().year
+    given_date = parse(dt)
+    date_year = given_date.year
+    format = f"{format}-%y" if(date_year != this_year) else f"{format}   "
+    return given_date.strftime(format)
+    
 def get_time_cut(dt, ta, ct):
     if ct in ['p', 'd']: return 'all'
     if 'd' == ta: return dt.strftime('%b-%d-%y')
@@ -105,19 +112,6 @@ def get_bank_icon(wf, account, banks):
     name = bank['name']
     logo = bank['logo']
     return ensure_icon(wf.datadir, name, 'bank', logo)
-
-def get_category_icon(wf, categories):
-    cats = categories.lower().split(',')
-    for i in range(len(cats), 0, -1):
-        log.debug(cats)
-        cat = cats[i-1]
-        words = re.split(r'\s+|\'|,', cat)
-        for i in range(len(words),0,-1):
-            substr = ''.join(words[0:i])
-            if "s" == substr[-1]: substr = substr[:-1]
-            icon = f'icons/category/{substr}.png'
-            if os.path.exists(icon): return icon  
-            #if os.path.exists(f'{wf.datadir}/{icon}'): return f'{wf.datadir}/{icon}'
               
 def get_txn_icon(wf, txn, accounts, banks, merchants, categories):
     account = accounts[txn['account_id']]
@@ -129,11 +123,10 @@ def get_txn_icon(wf, txn, accounts, banks, merchants, categories):
     merchant = txn['merchant']
     merchant_url = merchants[txn['merchant_entity_id']]['icon'] if 'merchant_entity_id' in txn and txn['merchant_entity_id'] and txn['merchant_entity_id'] in merchants else None
     micon = ensure_icon(wf.datadir, merchant, 'merchant', merchant_url)
-    category_url = categories[txn['category_id']]['icon'] if 'category_id' in txn and txn['category_id'] and txn['category_id'] in categories else None
-    cicon = get_category_icon(wf, txn['categories'])
-    caticon = ensure_icon(wf.datadir, txn['category_id'], 'category', category_url) if not cicon else None
-    bicon = ensure_icon(wf.datadir, bank, 'bank') if not cicon and not caticon else None
-    icon = micon if micon else (cicon if cicon else caticon if caticon else bicon)
+    log.debug(f"{txn['category_id']}, {categories[txn['category_id']]['icon']}")
+    cicon = categories[txn['category_id']]['icon'] if (txn['category_id'] and (txn['category_id'] in categories) and ('icon' in categories[txn['category_id']])) else None
+    bicon = ensure_icon(wf.datadir, bank, 'bank') if not cicon else None
+    icon = micon if micon else (cicon if cicon else bicon)
     return icon
 
 def add_config_commands(args, config_commands):
@@ -191,6 +184,14 @@ def main(wf):
             'icon': "icons/ui/sync.png",
             'valid': True
         },
+        'upcat': {
+            'title': 'Update Categories',
+            'subtitle': 'Update transaction categories',
+            'autocomplete': 'upcat',
+            'args': ' --upcat',
+            'icon': "icons/ui/refresh.png",
+            'valid': True
+        },
         'clientid': {
             'title': 'Set Client ID',
             'subtitle': 'Set client ID for Plaid',
@@ -245,6 +246,14 @@ def main(wf):
             'autocomplete': 'act: ',
             'args': ' --acctid '+(words[1] if len(words)>1 else ''),
             'icon': "icons/ui/account.png",
+            'valid': False
+        },
+        'cat': {
+            'title': 'Choose a category',
+            'subtitle': 'Choose a transaction category',
+            'autocomplete': 'cat: ',
+            'args': ' --catid '+(words[1] if len(words)>1 else ''),
+            'icon': "icons/ui/categories.png",
             'valid': False
         },
         'ct': {
@@ -321,6 +330,11 @@ def main(wf):
         }
     }
     
+    accounts = get_secure_value(wf, 'accounts', {})
+    banks = get_stored_data(wf, 'banks')
+    merchants = get_stored_data(wf, 'merchants')
+    categories = get_stored_data(wf, 'categories')
+    
     config_options = {
         'env': {
                 'name': 'environment',
@@ -348,6 +362,17 @@ def main(wf):
                 'suffix': '\:',
                 'options': timeframes,
                 'id': lambda x: x.lower().replace(' ','-'),
+                'valid': False            
+        },
+        'cat': {
+                'name': 'categories',
+                'title': lambda x: f"{categories[x]['list'][-1]}",
+                'subtitle': lambda x: f"{' > '.join(categories[x]['list'])}",
+                'icon': lambda x: f"{categories[x]['icon']}",
+                'suffix': '\:',
+                'options': categories,
+                'filter_func': lambda x: f"{', '.join(categories[x]['list'])}",
+                'id': lambda x: x,
                 'valid': False            
         },
         'ct': {
@@ -429,11 +454,6 @@ def main(wf):
             'Action this item to install the update',
             autocomplete='workflow:update',
             icon="icons/ui/update.png")
-
-    accounts = get_secure_value(wf, 'accounts', {})
-    banks = get_stored_data(wf, 'banks')
-    merchants = get_stored_data(wf, 'merchants')
-    categories = get_stored_data(wf, 'categories')
     
     items = get_secure_value(wf, 'items', None)
     if not items:
@@ -460,7 +480,7 @@ def main(wf):
             found = re.findall(fr'{opt}{suffix}([^\s]+)', query)
             term = found[0] if found else ''
             if re.findall(fr'{opt}{suffix}[^\s]*$', query):
-                matches = wf.filter(term, opts, lambda x: x if is_array else opts[x])
+                matches = wf.filter(term, opts, config_options[opt]['filter_func'] if 'filter_func' in config_options[opt] else (lambda x: x if is_array else opts[x]))
                 query = re.sub(fr'{opt}{suffix}[^\s]*$','',query)
                 for item in matches:
                     name = item if is_array else config_options[opt]['options'][item]
@@ -549,11 +569,11 @@ def main(wf):
                     icon='icons/ui/chart.png'
                 )                
                 for txn in txns:
-                    post = parse(txn['post']).strftime('%Y %b %d')
+                    post = format_post_date(txn['post'])
                     merchant = txn['merchant'] if txn['merchant'] else txn['txntext']
                     merchant = merchant.ljust(50)
                     wf.add_item(
-                            title=f"{post}\t{merchant}\t\t${txn['amount']:.2f}",
+                            title=f"{post}    {merchant}    ${txn['amount']:.2f}",
                             subtitle=f"{txn['categories']}   {txn['txntext']}",
                             arg=' --txnid '+txn['transaction_id'],
                             valid=True,

@@ -1,6 +1,6 @@
 from workflow import web
 import json
-from common import ensure_icon, get_protocol
+from common import ensure_icon, get_protocol, get_category_icon
 
 class Plaid:
     def __init__(self, client_id, secret, user_id, environment='sandbox', logger=None, datadir=None):
@@ -14,10 +14,10 @@ class Plaid:
     def debug(self, text):
         if(self.logger): self.logger.debug(text)
         
-    def api(self, path, data={}):
+    def api(self, path, data={}, no_auth=False):
         url = f'https://{self.environment}.plaid.com{path}'
         headers = {'Accept':"application/json", 'Content-Type': "application/json"}
-        params = {'client_id': self.client_id, 'secret': self.secret}
+        params = {'client_id': self.client_id, 'secret': self.secret} if not no_auth else {}
         params = {**params, **data}
         r = None
         self.debug("plaid_api: url:"+url+", headers: "+str(headers)+", params: "+str(params))
@@ -33,6 +33,20 @@ class Plaid:
         else:
             self.debug(str(r.json()))
         return result   
+    
+    def get_categories(self, wf):
+        categories = {}
+        result = self.api(path="/categories/get", data={}, no_auth=True)
+        if 'categories' in result:
+            for category in result['categories']:
+                icon = get_category_icon(wf, category['hierarchy'])
+                wf.logger.debug(f"{category['hierarchy']}:  {icon}")
+                categories[category['category_id']] = {
+                    'id': category['category_id'],
+                    'list': category['hierarchy'],
+                    'icon': icon
+                }
+        return categories
     
     def get_link_token(self, item, proto='https', update=False):
         if not update and item and item.get('link_token'):
@@ -112,7 +126,7 @@ class Plaid:
                     categories[txn['category_id']] = {
                         'id': txn['category_id'],
                         'list': txn['category'],
-                        'icon': txn['personal_finance_category_icon_url']
+                        'icon': None
                     }
                 #ensure_icon(txn['category_id'],'category',txn['personal_finance_category_icon_url'])
         return merchants, categories
