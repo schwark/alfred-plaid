@@ -46,6 +46,7 @@ class TxnDB:
         category_id = txn['category_id']
         currency = txn['iso_currency_code']
         merchant = txn['merchant_name']
+        merchant_id = txn['merchant_entity_id']
         channel = txn['payment_channel']
         txntext = txn['name']
         subtype = txn['subtype'] if 'subtype' in txn else ''
@@ -54,9 +55,9 @@ class TxnDB:
         with con:
             cur = con.cursor()
             cur.execute("""INSERT OR IGNORE INTO
-                        transactions (transaction_id, account_id, currency, post, auth, channel, amount, subtype, merchant, categories, category_id, txntext)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """, (txn_id, account_id, currency, post, auth, channel, amount, subtype, merchant, categories, category_id, txntext))
+                        transactions (transaction_id, account_id, currency, post, auth, channel, amount, subtype, merchant, merchant_id, categories, category_id, txntext)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (txn_id, account_id, currency, post, auth, channel, amount, subtype, merchant, merchant_id, categories, category_id, txntext))
 
 
     # Search ranking function
@@ -177,7 +178,7 @@ class TxnDB:
         cursor = db.cursor()
         try:
             sql = f"""
-                    SELECT transaction_id, account_id, txntext, subtype, merchant, post, currency, amount, category_id, categories 
+                    SELECT transaction_id, account_id, txntext, subtype, merchant, merchant_id, post, currency, amount, category_id, categories 
                     FROM transactions 
                     WHERE {termsearch}{dtt}{dtf}{amtt}{amtf}{acctq} ORDER BY {sort} {order}"""
             self.debug(sql)

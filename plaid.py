@@ -103,7 +103,8 @@ class Plaid:
                         'id': txn['merchant_entity_id'],
                         'name': txn['merchant_name'] if 'merchant_name' in txn else None,
                         'icon': txn['logo_url'] if 'logo_url' in txn else None,
-                        'url': txn['website'] if 'website' in txn else None
+                        'url': txn['website'] if 'website' in txn else None,
+                        'categories': None
                     }
                 ensure_icon(self.datadir, txn['merchant_name'],'merchant',txn['logo_url'])
             if 'category_id' in txn and txn['category_id']:

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS transactions(
     amount real,
     subtype text,
     merchant text,
+    merchant_id text,
     institution text,
     txntext text,
     category_id text,
