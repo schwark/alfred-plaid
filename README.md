@@ -81,10 +81,15 @@ ct:<p|d|b|l>            choose a chart type from pie, doughnut, bar or line
 ta:<d|w|m>              choose periods to chart over from day, week or month
 ma:<m|c>                choose a charting segment to total over from merchant or category for each transaction
 ```
+NOTE: Category search with `cat:` will also include all the subcategories of the category chosen.
 
 ## Charting
 
 Any transaction query as above that includes `cht:` in the query will show a link to a chart as the first result - hitting the `SHIFT` key (NO click - only tap `SHIFT` key) will popup the chart. The exact style of the chart can be customized using the `ct:`, `ta:`, and `ma:` modifiers to any transaction query.
+
+## Transaction Category Customization
+
+Any transaction can be customized to something else. When that is done that merchant is reclassified across all transactions to the new category. To do this, search for the transaction in question and then `ENTER` to select the transaction (ignore the long string that shows up) and then add `cht:` or type `c` and choose `Choose Category`. Type in a few letters to find the category you want. Choose the category to reclassify to. The result will update to the transaction, and the subtitle will update to `Change category to ...`. Hit `ENTER` to reclassify. Now all transactions with that merchant will now be reclassified to this new category
 
 ## Reinitialize
 
