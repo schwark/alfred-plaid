@@ -114,7 +114,7 @@ def main(wf):
         wf.clear_settings()
         wf.clear_data(lambda x: current_environment in x)
         change_env(wf, current_environment)
-        qnotify('Plaid', f'{get_environment(wf).capitalize()} Transaction Data Cleared')
+        qnotify('Plaid', f'{current_environment.capitalize()} Transaction Data Cleared')
 
     # Reinitialize if necessary
     if args.reinit:
