@@ -16,6 +16,7 @@ ALL_ENV = 'global'
 ALL_USER = 'config'
 CERT_FILE = 'cert.pem'
 KEY_FILE = 'key.pem'
+STORAGE = None
 
 def get_category_icon(wf, cats):
     for i in range(len(cats), 0, -1):
@@ -128,13 +129,23 @@ def get_password(wf, name):
 
 def save_password(wf, name, value):
     wf.save_password(name, json.dumps(value))
+    
+    
+def get_storage(wf):
+    global STORAGE
+    if not STORAGE: STORAGE = get_password(wf, SECURE_STORE)
+    return STORAGE
+
+def save_storage(wf):
+    global STORAGE
+    save_password(wf, SECURE_STORE, STORAGE)
 
 # global values are under env='global'
 # across user values are under user='config'
 def get_secure_value(wf, key, default=None, user=None, env=None):
     user = user if user else get_current_user(wf)
     env = env if env else get_environment(wf)
-    storage = get_password(wf, SECURE_STORE)
+    storage = get_storage(wf)
     if env not in storage: return default
     if user and user not in storage[env]: return default
     store = storage[env][user] if user else storage[env]
@@ -146,7 +157,7 @@ def get_secure_value(wf, key, default=None, user=None, env=None):
 def set_secure_value(wf, key, value, user=None, env=None):
     user = user if user else get_current_user(wf)
     env = env if env else get_environment(wf)
-    storage = get_password(wf, SECURE_STORE)
+    storage = get_storage(wf)
     if env not in storage: storage[env] = {}
     if user and user not in storage[env]: storage[env][user] = {}
     store = storage[env][user] if user else storage[env]
@@ -154,7 +165,9 @@ def set_secure_value(wf, key, value, user=None, env=None):
     current = store[key]
     if current != value:
         store[key] = value
-        save_password(wf, SECURE_STORE, storage)   
+        save_storage(wf)   
         
 def reset_secure_values(wf):
-    save_password(wf, SECURE_STORE, {}) 
+    global STORAGE
+    STORAGE = {}
+    save_storage(wf)
