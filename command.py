@@ -119,7 +119,7 @@ def main(wf):
     # Reinitialize if necessary
     if args.reinit:
         reset_secure_values(wf)
-        wf.clear_data()
+        wf.reset()
         qnotify('Plaid', 'Workflow reinitialized')
         return 0
 
