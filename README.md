@@ -91,6 +91,14 @@ Any transaction query as above that includes `cht:` in the query will show a lin
 
 Any transaction can be customized to something else. When that is done that merchant is reclassified across all transactions to the new category. To do this, search for the transaction in question and then `ENTER` to select the transaction (ignore the long string that shows up) and then add `cht:` or type `c` and choose `Choose Category`. Type in a few letters to find the category you want. Choose the category to reclassify to. The result will update to the transaction, and the subtitle will update to `Change category to ...`. Hit `ENTER` to reclassify. Now all transactions with that merchant will now be reclassified to this new category
 
+## Clear
+
+```
+pd clear
+```
+This clears all transaction data and merchant and category data. It retains the client id, secret and even the items already linked. But all account and transaction data is removed. NOTE: the environment being used is set back to default value as well with this operation. Use as needed.
+
+
 ## Reinitialize
 
 ```
