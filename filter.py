@@ -4,7 +4,7 @@ import sys
 import argparse
 from workflow.workflow import MATCH_ATOM, MATCH_STARTSWITH, MATCH_SUBSTRING, MATCH_ALL, MATCH_INITIALS, MATCH_CAPITALS, MATCH_INITIALS_STARTSWITH, MATCH_INITIALS_CONTAIN
 from workflow import Workflow, ICON_NOTE, ICON_BURN, PasswordNotFound
-from common import get_stored_data, ensure_icon, get_environment, get_protocol, get_secure_value, set_secure_value, get_current_user, ALL_ENV, ALL_USER, get_db_file, get_category_icon, get_category, extract_filter
+from common import get_stored_data, ensure_icon, get_environment, get_protocol, get_secure_value, set_secure_value, get_current_user, ALL_ENV, ALL_USER, get_db_file, get_category_icon, get_category, extract_filter, shellquote
 from db import TxnDB
 from dateutil.parser import parse 
 from datetime import timedelta, datetime
@@ -46,7 +46,7 @@ def create_chart(wf, txns):
     merchants = get_stored_data(wf, 'merchants')
     categories = get_stored_data(wf, 'categories')
     for txn in txns:
-        category_id = get_category(wf, txn['merchant_id'], txn['category_id'], merchants)
+        category_id = get_category(wf, txn)
         post_date = parse(txn['post'])
         time_cut = get_time_cut(post_date, ta, ct)
         if not min_date or post_date < min_date: min_date = post_date
@@ -118,7 +118,7 @@ def get_bank_icon(wf, account, banks):
     return ensure_icon(wf.datadir, name, 'bank', logo)
               
 def get_txn_icon(wf, txn, accounts, banks, merchants, categories):
-    log.debug(accounts)
+    #log.debug(accounts)
     account = accounts[txn['account_id']]
     if 'institution_id' in account:
         bank = banks[account['institution_id']]
@@ -594,22 +594,24 @@ def main(wf):
                     merchant_id = txn['merchant_id']
                     post = format_post_date(txn['post'])
                     if not cat_id:
-                        category_id = get_category(wf, txn['merchant_id'], txn['category_id'], merchants)
+                        category_id = get_category(wf, txn)
                         category = ' > '.join(categories[category_id]['list'])
                         subtitle = f"{category}     {txn['txntext']}"
                     else:
                         category = ' > '.join(categories[int(cat_id)]['list'])
                         subtitle = f"Change category to {category}"
                     merchant = txn['merchant'] if txn['merchant'] else txn['txntext']
+                    log.debug(f"{merchant_id} | {txn['txntext']} | {merchant}")
                     merchant = merchant.ljust(50)
-                    arg = f' --merchant_id {merchant_id}' if merchant_id else ''
+                    arg = f' --merchant_id {merchant_id}' if cat_id and merchant_id else ''
+                    arg = f" --merchant {shellquote(txn['merchant'])}" if cat_id and not merchant_id else ''
                     arg = arg + f' --category_id {cat_id}' if cat_id else ''
                     wf.add_item(
                             title=f"{post}    {merchant}    ${txn['amount']:.2f}",
                             subtitle=subtitle,
                             autocomplete=f"txn:{txn['transaction_id']} ",
                             arg=arg,
-                            valid='--merchant_id' in arg and '--category_id' in arg,
+                            valid='--merchant' in arg and '--category_id' in arg,
                             icon=get_txn_icon(wf, txn, accounts, banks, merchants, categories)
                     )
 

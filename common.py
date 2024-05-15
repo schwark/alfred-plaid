@@ -179,15 +179,18 @@ def reset_secure_values(wf):
     STORAGE = {}
     save_storage(wf)
     
-def get_category(wf, merchant_id, category_id, merchants):
-    custom_categorization = wf.stored_data('custom_categorization')
-    return custom_categorization[merchant_id] if custom_categorization and merchant_id in custom_categorization else category_id
+def get_category(wf, txn):
+    merchant_id = txn['merchant_id']
+    merchant = txn['merchant']
+    category_id = int(txn['category_id'])
+    id = merchant_id if merchant_id else merchant
+    custom_categorization = get_stored_data(wf, 'custom_categorization', {})
+    return custom_categorization[id] if custom_categorization and id in custom_categorization else category_id
 
-def set_category(wf, merchant_id, category_id):
-    custom_categorization = wf.stored_data('custom_categorization')
-    if not custom_categorization: custom_categorization = {}
-    custom_categorization[merchant_id] = category_id
-    set_stored_data('custom_categorization', custom_categorization)
+def set_category(wf, id, category_id):
+    custom_categorization = get_stored_data(wf, 'custom_categorization', {})
+    custom_categorization[id] = category_id
+    set_stored_data(wf, 'custom_categorization', custom_categorization)
 
 def extract_filter(query, token, type):
     result = None
@@ -202,3 +205,6 @@ def extract_filter(query, token, type):
         elif('text' == type):
             pass
     return query,result
+
+def shellquote(s):
+    return "'" + s.replace("'", "'\\''") + "'"

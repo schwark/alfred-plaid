@@ -82,6 +82,7 @@ def main(wf):
     parser.add_argument('--proto', dest='proto', nargs='?', default=None)
     parser.add_argument('--category_id', dest='category_id', nargs='?', default=None)
     parser.add_argument('--merchant_id', dest='merchant_id', nargs='?', default=None)
+    parser.add_argument('--merchant', dest='merchant', nargs='?', default=None)
     parser.add_argument('--acctid', dest='acctid', nargs='?', default=None)
     # add an optional (nargs='?') --update argument and save its
     # value to 'apikey' (dest). This will be called from a separate "Run Script"
@@ -154,12 +155,13 @@ def main(wf):
             qnotify('Plaid', 'Account Filter Failed')
         return 0  # 0 means script exited cleanly
     
-    if args.category_id and args.merchant_id:
+    if args.category_id and (args.merchant_id or args.merchant):
         merchants = get_stored_data(wf, 'merchants', {})
         categories = get_stored_data(wf, 'categories', {})
         category_id = int(args.category_id)
-        set_category(wf, args.merchant_id, category_id)
-        merchant = merchants[args.merchant_id]['name']
+        id = args.merchant_id if args.merchant_id is not None else args.merchant
+        set_category(wf, id, category_id)
+        merchant = merchants[args.merchant_id]['name'] if args.merchant_id else args.merchant
         category = category_name(wf, category_id, categories)
         qnotify('Plaid', f'{merchant} is now {category}')
         return 0  # 0 means script exited cleanly
