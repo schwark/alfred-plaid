@@ -111,11 +111,16 @@ def error(text):
     exit(0)
 
 def get_stored_data(wf, name, default={}):
+    name = f"{get_environment(wf)}.{name}"
     try:
         data = wf.stored_data(name)
     except ValueError:
         pass
     return data if data else default
+
+def set_stored_data(wf, name, data):
+    name = f"{get_environment(wf)}.{name}"
+    wf.store_data(name, data)
 
 def get_current_user(wf):
     return get_secure_value(wf, 'current_user', None, ALL_USER)
@@ -182,7 +187,7 @@ def set_category(wf, merchant_id, category_id):
     custom_categorization = wf.stored_data('custom_categorization')
     if not custom_categorization: custom_categorization = {}
     custom_categorization[merchant_id] = category_id
-    wf.store_data('custom_categorization', custom_categorization)
+    set_stored_data('custom_categorization', custom_categorization)
 
 def extract_filter(query, token, type):
     result = None

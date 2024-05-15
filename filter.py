@@ -43,8 +43,8 @@ def create_chart(wf, txns):
     lines = ['Total'] if ct not in ['p','d'] else []
     min_date = None
     max_date = None
-    merchants = wf.stored_data('merchants')
-    categories = wf.stored_data('categories')
+    merchants = get_stored_data(wf, 'merchants')
+    categories = get_stored_data(wf, 'categories')
     for txn in txns:
         category_id = get_category(wf, txn['merchant_id'], txn['category_id'], merchants)
         post_date = parse(txn['post'])

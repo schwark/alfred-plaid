@@ -3,7 +3,7 @@
 import sys
 import argparse
 from workflow import Workflow, PasswordNotFound
-from common import qnotify, error, get_stored_data, open_url, wait_for_public_token, get_link_func, CERT_FILE, KEY_FILE
+from common import qnotify, error, get_stored_data, open_url, wait_for_public_token, get_link_func, CERT_FILE, KEY_FILE, set_stored_data
 from plaid import Plaid
 from server import run_server, stop_server
 from common import get_environment, get_secure_value, set_secure_value, set_current_user, ALL_ENV, ALL_USER, reset_secure_values, get_current_user, get_db_file, get_protocol, set_category, get_category, category_name
@@ -13,9 +13,7 @@ import os
 log = None
 
 def change_env(wf, env):
-    current = get_environment(wf)
-    if env != current:
-        wf.settings['environment'] = env
+    wf.settings['environment'] = env
 
 def add_item(wf, item):
     if not item: return
@@ -29,7 +27,7 @@ def update_categories(wf, plaid):
     newcats = plaid.get_categories(wf)
     categories = {**categories, **newcats}
     categories['zzz'] = {'id': 'zzz', 'list':[], 'icon': None}
-    wf.store_data('categories', categories)
+    set_stored_data(wf, 'categories', categories)
     return categories
 
 def reset_cursors(wf):
@@ -64,9 +62,9 @@ def update_items(wf, plaid):
             log.debug(t)
             db.save_txn(t)
     set_secure_value(wf, 'accounts', accounts)
-    wf.store_data('merchants', merchants)
-    wf.store_data('categories', categories)
-    wf.store_data('banks', banks)
+    set_stored_data(wf, 'merchants', merchants)
+    set_stored_data(wf, 'categories', categories)
+    set_stored_data(wf, 'banks', banks)
     return txns
     
 def main(wf):
@@ -110,13 +108,12 @@ def main(wf):
     }
     
     if args.clear or args.reinit:
-        wf.reset()
+        current_environment = get_environment(wf)
         reset_cursors(wf)
         set_secure_value(wf, 'accounts', {})
-        try:
-            os.remove(get_db_file(wf))
-        except OSError:
-            pass
+        wf.clear_settings()
+        wf.clear_data(lambda x: current_environment in x)
+        change_env(wf, current_environment)
         qnotify('Plaid', f'{get_environment(wf).capitalize()} Transaction Data Cleared')
 
     # Reinitialize if necessary
