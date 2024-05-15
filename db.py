@@ -4,7 +4,7 @@ from time import time
 import struct
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
-from dateutil.parser import parse
+from common import extract_filter
 import re
 
 class TxnDB:
@@ -81,21 +81,7 @@ class TxnDB:
                     for x, w in zip(zip(it, it, it), weights)
                     if x[1])
         return rank
-    
-    def extract_filter(self, query, token, type):
-        result = None
-        extract = re.findall(fr"{token}\:([^\s]+)",query)
-        if extract:
-            result = extract[0]
-            query = query.replace(f"{token}:{result}",'').replace(r'\s+',' ').strip()
-            if('date' == type):
-                result = parse(result)
-            elif('number' == type):
-                result = int(result)
-            elif('text' == type):
-                pass
-        return query,result
-    
+        
     def parse_dt(self, dt):
         date_from = None
         date_to = None
@@ -138,15 +124,16 @@ class TxnDB:
         return date_from, date_to
     
     def get_results(self, query):
-        query, date_from = self.extract_filter(query, 'dtf', 'date')
-        query, date_to = self.extract_filter(query, 'dtt', 'date')
-        query, amt_from = self.extract_filter(query, 'amtf', 'number')
-        query, amt_to = self.extract_filter(query, 'amtt', 'number')
-        query, sort = self.extract_filter(query, 'srt', 'text')
-        query, order = self.extract_filter(query, 'ord', 'text')
-        query, acct = self.extract_filter(query, 'act', 'text')
-        query, dt = self.extract_filter(query, 'dt', 'text')
-        query, cat = self.extract_filter(query, 'cat', 'text')
+        query, date_from = extract_filter(query, 'dtf', 'date')
+        query, date_to = extract_filter(query, 'dtt', 'date')
+        query, amt_from = extract_filter(query, 'amtf', 'number')
+        query, amt_to = extract_filter(query, 'amtt', 'number')
+        query, sort = extract_filter(query, 'srt', 'text')
+        query, order = extract_filter(query, 'ord', 'text')
+        query, acct = extract_filter(query, 'act', 'text')
+        query, dt = extract_filter(query, 'dt', 'text')
+        query, cat = extract_filter(query, 'cat', 'text')
+        query, txn = extract_filter(query, 'txn', 'text')
         if dt:
             dfro, dto = self.parse_dt(dt)
             date_from = dfro if dfro and not date_from else date_from
@@ -166,12 +153,14 @@ class TxnDB:
         amtt = f" AND amount <= :amtt" if amt_to else ''
         acctq = f" AND account_id IN (:acct)" if acct else ''
         catq = f" AND category_id >= :cat AND category_id < :max_cat" if cat else ''
+        txnq = f" AND transaction_id = :txn" if txn else ''
+        catq = catq if not txn else '' # if txn_id is specified cat is ignored
         termsearch = f"id IN (SELECT rowid from txn_fts WHERE txn_fts MATCH :query ORDER BY rank DESC)"
         query = ' '.join([x+'*' if ':' not in x else '' for x in query.strip().split()]).strip()
-        params = {'query': query, 'amtt': amt_to, 'amtf': amt_from, 'dtt': date_to, 'dtf': date_from, 'srt': sort, 'ord': order, 'acct': acct, 'cat': cat, 'max_cat': max_cat}
+        params = {'query': query, 'amtt': amt_to, 'amtf': amt_from, 'dtt': date_to, 'dtf': date_from, 'srt': sort, 'ord': order, 'acct': acct, 'cat': cat, 'max_cat': max_cat, 'txn': txn}
         termsearch = termsearch if query else 'id IS NOT NULL'
         self.debug(params)
-        if not (query or dtf or dtt or amtf or amtt or catq): return None
+        if not (query or dtf or dtt or amtf or amtt or catq or txnq): return None
             
         # Search!
         start = time()
@@ -188,7 +177,7 @@ class TxnDB:
             sql = f"""
                     SELECT transaction_id, account_id, txntext, subtype, merchant, merchant_id, post, currency, amount, category_id, categories 
                     FROM transactions 
-                    WHERE {termsearch}{dtt}{dtf}{amtt}{amtf}{catq}{acctq} ORDER BY {sort} {order}"""
+                    WHERE {termsearch}{dtt}{dtf}{amtt}{amtf}{catq}{acctq}{txnq} ORDER BY {sort} {order}"""
             self.debug(sql)
             cursor.execute(sql, params, )
             results = cursor.fetchall()

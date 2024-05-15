@@ -6,7 +6,7 @@ from workflow import Workflow, PasswordNotFound
 from common import qnotify, error, get_stored_data, open_url, wait_for_public_token, get_link_func, CERT_FILE, KEY_FILE
 from plaid import Plaid
 from server import run_server, stop_server
-from common import get_environment, get_secure_value, set_secure_value, set_current_user, ALL_ENV, ALL_USER, reset_secure_values, get_current_user, get_db_file, get_protocol
+from common import get_environment, get_secure_value, set_secure_value, set_current_user, ALL_ENV, ALL_USER, reset_secure_values, get_current_user, get_db_file, get_protocol, set_category, get_category, category_name
 from db import TxnDB
 import os
 
@@ -32,6 +32,12 @@ def update_categories(wf, plaid):
     wf.store_data('categories', categories)
     return categories
 
+def reset_cursors(wf):
+    items = get_secure_value(wf, 'items', {})
+    for item in items:
+        items[item]['txn_cursor'] = None
+    set_secure_value(wf, 'items', items)
+
 def update_items(wf, plaid):
     log.debug('updating items...')
     db = TxnDB(get_db_file(wf), wf.logger)
@@ -55,7 +61,7 @@ def update_items(wf, plaid):
             accounts[actlist[i]['account_id']] = actlist[i]
         txns = plaid.get_transactions(single, merchants, categories)
         for t in txns:
-            #log.debug(t)
+            log.debug(t)
             db.save_txn(t)
     set_secure_value(wf, 'accounts', accounts)
     wf.store_data('merchants', merchants)
@@ -76,6 +82,8 @@ def main(wf):
     parser.add_argument('--pubtoken', dest='pubtoken', nargs='?', default=None)
     parser.add_argument('--environment', dest='environment', nargs='?', default=None)
     parser.add_argument('--proto', dest='proto', nargs='?', default=None)
+    parser.add_argument('--category_id', dest='category_id', nargs='?', default=None)
+    parser.add_argument('--merchant_id', dest='merchant_id', nargs='?', default=None)
     parser.add_argument('--acctid', dest='acctid', nargs='?', default=None)
     # add an optional (nargs='?') --update argument and save its
     # value to 'apikey' (dest). This will be called from a separate "Run Script"
@@ -103,6 +111,7 @@ def main(wf):
     
     if args.clear or args.reinit:
         wf.reset()
+        reset_cursors(wf)
         set_secure_value(wf, 'accounts', {})
         try:
             os.remove(get_db_file(wf))
@@ -147,7 +156,17 @@ def main(wf):
         else:
             qnotify('Plaid', 'Account Filter Failed')
         return 0  # 0 means script exited cleanly
-
+    
+    if args.category_id and args.merchant_id:
+        merchants = get_stored_data(wf, 'merchants', {})
+        categories = get_stored_data(wf, 'categories', {})
+        category_id = int(args.category_id)
+        set_category(wf, args.merchant_id, category_id)
+        merchant = merchants[args.merchant_id]['name']
+        category = category_name(wf, category_id, categories)
+        qnotify('Plaid', f'{merchant} is now {category}')
+        return 0  # 0 means script exited cleanly
+    
     # save User ID if that is passed in
     if args.userid:  # Script was passed an API key
         log.debug("saving user id "+args.userid)

@@ -1,11 +1,11 @@
 import subprocess
 from time import sleep
 import re
-from workflow import Workflow, ICON_WEB, ICON_NOTE, ICON_BURN, ICON_SWITCH, ICON_HOME, ICON_COLOR, ICON_INFO, ICON_SYNC, web, PasswordNotFound
+from workflow import PasswordNotFound
 import json
 import os.path
 from urllib.request import urlretrieve
-import shutil
+from dateutil.parser import parse
 
 SERVER_HOST='localhost'
 SERVER_PORT=8383
@@ -17,6 +17,10 @@ ALL_USER = 'config'
 CERT_FILE = 'cert.pem'
 KEY_FILE = 'key.pem'
 STORAGE = None
+
+def category_name(wf, category_id, categories):
+    names = categories[category_id]['list']
+    return names[-1]
 
 def get_category_icon(wf, cats):
     for i in range(len(cats), 0, -1):
@@ -129,8 +133,7 @@ def get_password(wf, name):
 
 def save_password(wf, name, value):
     wf.save_password(name, json.dumps(value))
-    
-    
+      
 def get_storage(wf):
     global STORAGE
     if not STORAGE: STORAGE = get_password(wf, SECURE_STORE)
@@ -155,19 +158,42 @@ def get_secure_value(wf, key, default=None, user=None, env=None):
 # global values are under env='global'
 # across user values are under user='config'
 def set_secure_value(wf, key, value, user=None, env=None):
+    global STORAGE
     user = user if user else get_current_user(wf)
     env = env if env else get_environment(wf)
-    storage = get_storage(wf)
-    if env not in storage: storage[env] = {}
-    if user and user not in storage[env]: storage[env][user] = {}
-    store = storage[env][user] if user else storage[env]
+    if not STORAGE: STORAGE = {}
+    if env not in STORAGE: STORAGE[env] = {}
+    if user and user not in STORAGE[env]: STORAGE[env][user] = {}
+    store = STORAGE[env][user] if user else STORAGE[env]
     if key not in store: store[key] = {}
-    current = store[key]
-    if current != value:
-        store[key] = value
-        save_storage(wf)   
+    store[key] = value
+    save_storage(wf)
         
 def reset_secure_values(wf):
     global STORAGE
     STORAGE = {}
     save_storage(wf)
+    
+def get_category(wf, merchant_id, category_id, merchants):
+    custom_categorization = wf.stored_data('custom_categorization')
+    return custom_categorization[merchant_id] if custom_categorization and merchant_id in custom_categorization else category_id
+
+def set_category(wf, merchant_id, category_id):
+    custom_categorization = wf.stored_data('custom_categorization')
+    if not custom_categorization: custom_categorization = {}
+    custom_categorization[merchant_id] = category_id
+    wf.store_data('custom_categorization', custom_categorization)
+
+def extract_filter(query, token, type):
+    result = None
+    extract = re.findall(fr"{token}\:([^\s]+)",query)
+    if extract:
+        result = extract[0]
+        query = query.replace(f"{token}:{result}",'').replace(r'\s+',' ').strip()
+        if('date' == type):
+            result = parse(result)
+        elif('number' == type):
+            result = int(result)
+        elif('text' == type):
+            pass
+    return query,result

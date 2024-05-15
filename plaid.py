@@ -117,6 +117,7 @@ class Plaid:
                     merchants[txn['merchant_entity_id']] = {
                         'id': txn['merchant_entity_id'],
                         'name': txn['merchant_name'] if 'merchant_name' in txn else None,
+                        'category_id': txn['category_id'],
                         'icon': txn['logo_url'] if 'logo_url' in txn else None,
                         'url': txn['website'] if 'website' in txn else None,
                         'categories': None

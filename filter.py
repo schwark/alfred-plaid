@@ -4,7 +4,7 @@ import sys
 import argparse
 from workflow.workflow import MATCH_ATOM, MATCH_STARTSWITH, MATCH_SUBSTRING, MATCH_ALL, MATCH_INITIALS, MATCH_CAPITALS, MATCH_INITIALS_STARTSWITH, MATCH_INITIALS_CONTAIN
 from workflow import Workflow, ICON_NOTE, ICON_BURN, PasswordNotFound
-from common import get_stored_data, ensure_icon, get_environment, get_protocol, get_secure_value, set_secure_value, get_current_user, ALL_ENV, ALL_USER, get_db_file, get_category_icon
+from common import get_stored_data, ensure_icon, get_environment, get_protocol, get_secure_value, set_secure_value, get_current_user, ALL_ENV, ALL_USER, get_db_file, get_category_icon, get_category, extract_filter
 from db import TxnDB
 from dateutil.parser import parse 
 from datetime import timedelta, datetime
@@ -34,7 +34,7 @@ def get_time_cut(dt, ta, ct):
     if 'w' == ta: return (dt - timedelta(days=dt.isoweekday() % 7)).strftime('%b-%d-%y')
     if 'm' == ta: return dt.replace(day=1,hour=0,minute=0,second=0).strftime('%b-%y')
 
-def create_chart(txns): 
+def create_chart(wf, txns): 
     ta = chart_options['ta']
     ma = chart_options['ma']
     ct = chart_options['ct']
@@ -43,13 +43,16 @@ def create_chart(txns):
     lines = ['Total'] if ct not in ['p','d'] else []
     min_date = None
     max_date = None
+    merchants = wf.stored_data('merchants')
+    categories = wf.stored_data('categories')
     for txn in txns:
+        category_id = get_category(wf, txn['merchant_id'], txn['category_id'], merchants)
         post_date = parse(txn['post'])
         time_cut = get_time_cut(post_date, ta, ct)
         if not min_date or post_date < min_date: min_date = post_date
         if not max_date or post_date > max_date: max_date = post_date
         data[time_cut] = data[time_cut] if time_cut in data else {}
-        merchant_cut = txn['merchant'] if 'm' == ma else txn['categories'].split(',')[0]
+        merchant_cut = txn['merchant'] if 'm' == ma else categories[category_id]['list'][0]
         merchant_cut = merchant_cut if merchant_cut else 'Other'
         data[time_cut][merchant_cut] = data[time_cut][merchant_cut]+txn['amount'] if merchant_cut in data[time_cut] else txn['amount']
         if merchant_cut not in lines: lines.append(merchant_cut)
@@ -80,8 +83,8 @@ def create_chart(txns):
     log.debug(chart)
     return chart
          
-def get_chart_url(txns):
-    chart = create_chart(txns)
+def get_chart_url(wf, txns):
+    chart = create_chart(wf, txns)
     url = f"https://quickchart.io/chart?width=500&height=300&chart={urllib.parse.quote_plus(json.dumps(chart, separators=(',', ':')))}"
     log.debug(url)
     return url
@@ -115,6 +118,7 @@ def get_bank_icon(wf, account, banks):
     return ensure_icon(wf.datadir, name, 'bank', logo)
               
 def get_txn_icon(wf, txn, accounts, banks, merchants, categories):
+    log.debug(accounts)
     account = accounts[txn['account_id']]
     if 'institution_id' in account:
         bank = banks[account['institution_id']]
@@ -581,19 +585,31 @@ def main(wf):
                         title="Chart the transactions",
                         subtitle=f"Highlight and tap SHIFT key for {chart_types[chart_options['ct']]} chart aggregated by {time_aggregates[chart_options['ta']]} and {merchant_aggregates[chart_options['ma']]}",
                         valid=False,
-                        quicklookurl=get_chart_url(txns),
+                        quicklookurl=get_chart_url(wf,txns),
                         icon='icons/ui/chart.png'
                     )
                 txn_list = txns #[:30] if len(txns) > 30 else txns                
                 for txn in txn_list:
+                    query, cat_id = extract_filter(query, 'cat', 'text')
+                    merchant_id = txn['merchant_id']
                     post = format_post_date(txn['post'])
+                    if not cat_id:
+                        category_id = get_category(wf, txn['merchant_id'], txn['category_id'], merchants)
+                        category = ' > '.join(categories[category_id]['list'])
+                        subtitle = f"{category}     {txn['txntext']}"
+                    else:
+                        category = ' > '.join(categories[int(cat_id)]['list'])
+                        subtitle = f"Change category to {category}"
                     merchant = txn['merchant'] if txn['merchant'] else txn['txntext']
                     merchant = merchant.ljust(50)
+                    arg = f' --merchant_id {merchant_id}' if merchant_id else ''
+                    arg = arg + f' --category_id {cat_id}' if cat_id else ''
                     wf.add_item(
                             title=f"{post}    {merchant}    ${txn['amount']:.2f}",
-                            subtitle=f"{txn['categories']}   {txn['txntext']}",
-                            arg=' --txnid '+txn['transaction_id'],
-                            valid=True,
+                            subtitle=subtitle,
+                            autocomplete=f"txn:{txn['transaction_id']} ",
+                            arg=arg,
+                            valid='--merchant_id' in arg and '--category_id' in arg,
                             icon=get_txn_icon(wf, txn, accounts, banks, merchants, categories)
                     )
 
