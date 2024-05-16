@@ -18,9 +18,10 @@ CERT_FILE = 'cert.pem'
 KEY_FILE = 'key.pem'
 STORAGE = None
 
-def category_name(wf, category_id, categories):
+def category_name(wf, category_id, full=False):
+    categories = get_stored_data(wf, 'categories', {})
     names = categories[category_id]['list']
-    return names[-1]
+    return ','.join(names) if full else names[-1]
 
 def get_category_icon(wf, cats):
     for i in range(len(cats), 0, -1):
@@ -185,7 +186,7 @@ def get_category(wf, txn):
     category_id = int(txn['category_id'])
     id = merchant_id if merchant_id else merchant
     custom_categorization = get_stored_data(wf, 'custom_categorization', {})
-    return custom_categorization[id] if custom_categorization and id in custom_categorization else category_id
+    return int(custom_categorization[id] if custom_categorization and id in custom_categorization else category_id)
 
 def set_category(wf, id, category_id):
     custom_categorization = get_stored_data(wf, 'custom_categorization', {})

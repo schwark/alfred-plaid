@@ -59,8 +59,8 @@ def update_items(wf, plaid):
             accounts[actlist[i]['account_id']] = actlist[i]
         txns = plaid.get_transactions(single, merchants, categories)
         for t in txns:
-            log.debug(t)
-            db.save_txn(t)
+            #log.debug(t)
+            db.save_txn(t, wf)
     set_secure_value(wf, 'accounts', accounts)
     set_stored_data(wf, 'merchants', merchants)
     set_stored_data(wf, 'categories', categories)
@@ -157,12 +157,13 @@ def main(wf):
     
     if args.category_id and (args.merchant_id or args.merchant):
         merchants = get_stored_data(wf, 'merchants', {})
-        categories = get_stored_data(wf, 'categories', {})
         category_id = int(args.category_id)
         id = args.merchant_id if args.merchant_id is not None else args.merchant
         set_category(wf, id, category_id)
         merchant = merchants[args.merchant_id]['name'] if args.merchant_id else args.merchant
-        category = category_name(wf, category_id, categories)
+        category = category_name(wf, category_id)
+        db = TxnDB(get_db_file(wf), wf.logger)
+        db.update_txn_category(category_id, args.merchant_id, merchant, category_name(wf, category_id, True))
         qnotify('Plaid', f'{merchant} is now {category}')
         return 0  # 0 means script exited cleanly
     

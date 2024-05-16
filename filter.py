@@ -516,7 +516,7 @@ def main(wf):
                             icon=icon
                     )
             if found:
-                log.debug(f'found {term} with {opts}')
+                #log.debug(f'found {term} with {opts}')
                 if term and (term in opts):
                     if 'set' in config_options[opt]:
                         config_options[opt]['set']['holder'][config_options[opt]['set']['field']] = term
@@ -591,9 +591,10 @@ def main(wf):
                 txn_list = txns #[:30] if len(txns) > 30 else txns                
                 for txn in txn_list:
                     query, cat_id = extract_filter(query, 'cat', 'text')
+                    query, txn_id = extract_filter(query, 'txn', 'text')
                     merchant_id = txn['merchant_id']
                     post = format_post_date(txn['post'])
-                    if not cat_id:
+                    if not cat_id or not txn_id:
                         category_id = get_category(wf, txn)
                         category = ' > '.join(categories[category_id]['list'])
                         subtitle = f"{category}     {txn['txntext']}"
@@ -604,7 +605,8 @@ def main(wf):
                     log.debug(f"{merchant_id} | {txn['txntext']} | {merchant}")
                     merchant = merchant.ljust(50)
                     arg = f' --merchant_id {merchant_id}' if cat_id and merchant_id else ''
-                    arg = f" --merchant {shellquote(txn['merchant'])}" if cat_id and not merchant_id else ''
+                    if not arg:
+                        arg = f" --merchant {shellquote(txn['merchant'])}" if cat_id and not merchant_id else ''
                     arg = arg + f' --category_id {cat_id}' if cat_id else ''
                     wf.add_item(
                             title=f"{post}    {merchant}    ${txn['amount']:.2f}",

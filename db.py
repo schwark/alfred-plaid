@@ -4,7 +4,7 @@ from time import time
 import struct
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
-from common import extract_filter
+from common import extract_filter, get_category, category_name
 import re
 
 class TxnDB:
@@ -37,13 +37,26 @@ class TxnDB:
             cur = con.cursor()
             cur.executescript(sql)
             
-    def save_txn(self, txn):
+    def update_txn_category(self, category_id, merchant_id, merchant, cat_name):
+        column_value = merchant_id if merchant_id else merchant
+        params = {'category_id': int(category_id), 'categories': cat_name, 'column_value': column_value}
+        column = 'merchant_id' if merchant_id else 'merchant'
+        con = sqlite3.connect(self.file)
+        with con:
+            cur = con.cursor()
+            sql = f"""UPDATE transactions SET category_id=:category_id, categories=:categories
+                            WHERE {column}=:column_value"""
+            self.logger.debug(f"{sql}: {column} {column_value}")
+            cur.execute(sql, params,)
+
+            
+    def save_txn(self, txn, wf):
         account_id = txn['account_id']
         auth = datetime.strptime(txn['authorized_date'], '%Y-%m-%d') if 'authorized_date' in txn and txn['authorized_date'] else None
         post = datetime.strptime(txn['date'], '%Y-%m-%d')
         amount = txn['amount']
-        categories = ','.join(txn['category'])
-        category_id = int(txn['category_id']) if txn['category_id'] else 0
+        category_id = get_category(wf, txn)
+        categories = category_name(wf, category_id)
         currency = txn['iso_currency_code']
         merchant = txn['merchant_name']
         merchant_id = txn['merchant_entity_id']
@@ -139,7 +152,7 @@ class TxnDB:
             date_from = dfro if dfro and not date_from else date_from
             date_to = dto if dto and not date_to else date_to
         if cat:
-            pat = re.compile(r'([0-9]*)([1-9])(0+)')
+            pat = re.compile(r'([0-9]*)([1-9])(0+)$')
             groups = pat.match(str(cat))
             cat = int(cat)
             max_cat = int(groups[1]+str(int(groups[2])+1)+groups[3]) if groups else cat+1
