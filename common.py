@@ -96,8 +96,8 @@ def wait_for_public_token(wf):
     token = None
     while(not done):
         tries = tries + 1
-        url = get_current_url(wf)
-        done = (url and 'missing value' not in url and ('completed=true' in url or 'localhost' not in url)) or tries > 300
+        url = get_current_url(wf).lower()
+        done = (url and 'missing value' not in url and ('completed=true' in url or ('localhost' not in url and 'plaid' not in url))) or tries > 300
         sleep(1)
     if(url):
         parts = re.search('public_token=([^&]+)', url, re.IGNORECASE)

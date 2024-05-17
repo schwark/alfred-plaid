@@ -219,7 +219,7 @@ class Response:
             # so no test cover (it isn't important).
             except AttributeError:  # pragma: no cover
                 pass
-
+            self.raw = err
             self.status_code = err.code
         else:
             self.status_code = self.raw.getcode()
@@ -227,8 +227,8 @@ class Response:
         self.reason = RESPONSES.get(self.status_code)
 
         # Parse additional info if request succeeded
-        if not self.error:
-            headers = self.raw.info()
+        if not self.error or self.error:
+            headers = self.raw.headers if self.error else self.raw.info()
             self.transfer_encoding = headers.get_content_charset()
             self.mimetype = headers.get("content-type")
 

@@ -14,6 +14,17 @@ log = None
 
 def change_env(wf, env):
     wf.settings['environment'] = env
+    
+def update_items(wf, plaid):
+    items = get_secure_value(wf, 'items', {})
+    for item_id in items:
+        item = items[item_id]
+        result = plaid.get_item(item['access_token'])
+        item['institution_id'] = result['item']['institution_id']
+        item['error'] = result['item']['error']
+        item['consent_expiration_time'] = result['item']['consent_expiration_time']
+        items[item['item_id']] = item
+    set_secure_value(wf, 'items', items)
 
 def add_item(wf, item):
     if not item: return
@@ -36,10 +47,11 @@ def reset_cursors(wf):
         items[item]['txn_cursor'] = None
     set_secure_value(wf, 'items', items)
 
-def update_items(wf, plaid):
-    log.debug('updating items...')
+def update_transactions(wf, plaid):
+    log.debug('updating transactions...')
     db = TxnDB(get_db_file(wf), wf.logger)
     
+    update_items(wf, plaid)
     items = get_secure_value(wf, 'items', {})
     accounts = get_secure_value(wf, 'accounts', {})
     merchants = get_stored_data(wf, 'merchants', {})
@@ -54,6 +66,13 @@ def update_items(wf, plaid):
         log.debug('updating item '+item_id)
         single = items[item_id]
         actlist = plaid.get_accounts(single, banks)
+        if 'ITEM_LOGIN_REQUIRED' == actlist:
+            items[item_id]['error'] = actlist
+            log.debug(f'{item_id} item has error {actlist}')
+            set_secure_value(wf, 'items', items)
+        elif type(actlist) is list and 'error' in items[item_id] and items[item_id]['error']:
+            items[item_id]['error'] = None
+            set_secure_value(wf, 'items', items)            
         for i in range(len(actlist)):
             #log.debug(actlist[i])
             accounts[actlist[i]['account_id']] = actlist[i]
@@ -89,7 +108,7 @@ def main(wf):
     # action with the API key
     parser.add_argument('--update', dest='update', action='store_true', default=False)
     parser.add_argument('--upcat', dest='upcat', action='store_true', default=False)
-    parser.add_argument('--link', dest='link', action='store_true', default=False)
+    parser.add_argument('--link', dest='link', nargs='?', default=None)
     parser.add_argument('--kill', dest='kill', action='store_true', default=False)
     # reinitialize 
     parser.add_argument('--reinit', dest='reinit', action='store_true', default=False)
@@ -220,7 +239,7 @@ def main(wf):
             
     # Update items if that is passed in
     if args.update:
-        result = update_items(wf, plaid)
+        result = update_transactions(wf, plaid)
         message = 'Accounts & Transactions updated' if result else 'Update failed'
         qnotify('Plaid', message)
         return 0  # 0 means script exited cleanly
@@ -235,10 +254,10 @@ def main(wf):
         stop_server(wf)
     
     if args.link:
-        item = {}
+        items = get_secure_value(wf, 'items', {})
+        item = items[args.link] if args.link in items else {}
         try:
             proto = get_protocol(wf)
-            log.debug("trying to link new item...")
             run_server(wf)
             link_token = plaid.get_link_token(item, proto)
             log.debug(f'link token is {link_token}')
@@ -253,8 +272,9 @@ def main(wf):
                 item['access_token'] = result['access_token']
                 item['item_id'] = result['item_id']
                 add_item(wf, item)
+                update_items(wf, plaid)
                 qnotify('Plaid', 'Saved Item' if 'access_token' in result else 'Item Save Failed')
-                result = update_items(wf, plaid)
+                result = update_transactions(wf, plaid)
             return 0  # 0 means script exited cleanly
         
 if __name__ == u"__main__":

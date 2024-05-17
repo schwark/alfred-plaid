@@ -1,6 +1,11 @@
 from workflow import web
 import json
-from common import ensure_icon, get_protocol, get_category_icon
+from common import ensure_icon, get_protocol, get_category_icon, qnotify
+
+ERROR_MESSAGES = {
+    'default': "Plaid API Error",
+    'ITEM_LOGIN_REQUIRED': "Login needs updating"
+}
 
 class Plaid:
     def __init__(self, client_id, secret, user_id, environment='sandbox', logger=None, datadir=None):
@@ -31,7 +36,10 @@ class Plaid:
             result = r.json()
             #self.debug(str(result))
         else:
-            self.debug(str(r.json()))
+            result = r.json()
+            if result and 400 == r.status_code and 'error_code' in result:
+                error = ERROR_MESSAGES[result['error_code']] if result['error_code'] in ERROR_MESSAGES else ERROR_MESSAGES['default']
+                qnotify('Plaid', error)
         return result   
     
     def get_categories(self, wf):
@@ -49,7 +57,8 @@ class Plaid:
                 }
         return categories
     
-    def get_link_token(self, item, proto='https', update=False):
+    def get_link_token(self, item, proto='https'):
+        update = item and 'access_token' in item
         if not update and item and item.get('link_token'):
             data = {'link_token': item.get('link_token')}
             result = self.api(path="/link/token/get", data=data)
@@ -89,9 +98,17 @@ class Plaid:
         result = self.api(path="/item/public_token/exchange", data=data)
         return result
     
+    def get_item(self, access_token):
+        data = {"access_token": access_token}
+        result = self.api(path="/item/get", data=data)
+        return result
+    
     def get_accounts(self, item, banks):
         data = {"access_token": item.get('access_token')}
         result = self.api(path="/accounts/get", data=data)
+        if 'error_code' in result:
+            return result['error_code']
+        
         bank = None
         if 'item' in result and 'institution_id' in result['item']:
             if result['item']['institution_id'] not in banks:

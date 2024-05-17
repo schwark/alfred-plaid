@@ -156,6 +156,16 @@ def add_config_commands(args, config_commands):
 def extract_commands(wf, args, commands):
     return args
 
+def add_new_link(wf):
+    wf.add_item(
+        title="Link a new item",
+        subtitle="Link a new financial institution's accounts",
+        autocomplete="link new",
+        arg='--link new',
+        valid=True,
+        icon="icons/ui/newbank.png"
+    )
+    
 def main(wf):
     # build argument parser to parse script args and collect their
     # values
@@ -173,16 +183,17 @@ def main(wf):
     merchants = get_stored_data(wf, 'merchants')
     categories = get_stored_data(wf, 'categories')
     environ = get_environment(wf)
-
+    items = get_secure_value(wf, 'items', {})
+    log.debug(items)
 
     config_commands = {
         'link': {
             'title': 'Link or update item',
             'subtitle': 'Add/update bank or card linking with a nickname',
-            'autocomplete': 'link',
+            'autocomplete': 'link ',
             'args': ' --link',
             'icon': "icons/ui/link.png",
-            'valid': True
+            'valid': False
         },
         'kill': {
             'title': 'Kill the link server',
@@ -394,6 +405,18 @@ def main(wf):
                 'id': lambda x: x if 'zzz' != x else None,
                 'valid': False            
         },
+        'link': {
+                'name': 'items',
+                'special_items_func': add_new_link,
+                'title': lambda x: banks[x['institution_id']]['name'],
+                'subtitle': lambda x: f"{'*ERROR* ' if x['error'] else ''} Update link to {banks[x['institution_id']]['name']}",
+                'icon': lambda x: banks[x['institution_id']]['logo'] if not x['error'] else 'icons/ui/broken.png',
+                'suffix': ' ',
+                'arg': lambda x: f"--link {x}",
+                'options': items,
+                'filter_func': lambda x: banks[items[x]['institution_id']]['name'],
+                'valid': True            
+        },
         'ct': {
                 'name': 'chart type',
                 'title': lambda x: f"{x}",
@@ -505,6 +528,8 @@ def main(wf):
             if re.findall(fr'{opt}{suffix}[^\s]*$', query):
                 matches = wf.filter(term, opts, config_options[opt]['filter_func'] if 'filter_func' in config_options[opt] else (lambda x: x if is_array else opts[x]))
                 query = re.sub(fr'{opt}{suffix}[^\s]*$','',query)
+                if 'special_items_func' in config_options[opt]:
+                    config_options[opt]['special_items_func'](wf)
                 for item in matches:
                     name = item if is_array else config_options[opt]['options'][item]
                     id = config_options[opt]['id'](item) if 'id' in config_options[opt] else item
