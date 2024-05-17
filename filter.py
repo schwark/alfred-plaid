@@ -166,6 +166,20 @@ def add_new_link(wf):
         icon="icons/ui/newbank.png"
     )
     
+def add_item_errors(wf, query):
+    if 'link ' in query: return
+    items = get_secure_value(wf, 'items', {})
+    for item in items:
+        if items[item]['error']:
+            wf.add_item(
+                title="Some items have errors..",
+                subtitle="Please check and re-link the appropriate accounts using pd link",
+                autocomplete="link ",
+                valid=False,
+                icon="icons/ui/broken.png"
+            )
+            return
+            
 def main(wf):
     # build argument parser to parse script args and collect their
     # values
@@ -498,6 +512,8 @@ def main(wf):
             'Action this item to install the update',
             autocomplete='workflow:update',
             icon="icons/ui/update.png")
+        
+    add_item_errors(wf, query)
     
     items = get_secure_value(wf, 'items', None)
     if not items:
