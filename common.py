@@ -181,8 +181,8 @@ def reset_secure_values(wf):
     save_storage(wf)
     
 def get_category(wf, txn):
-    merchant_id = txn['merchant_id']
-    merchant = txn['merchant']
+    merchant_id = (txn['merchant_entity_id'] if 'merchant_entity_id' in txn else None) if type(txn) is dict else txn['merchant_id']
+    merchant = (txn['merchant_name'] if 'merchant_name' in txn else None) if type(txn) is dict else txn['merchant']
     category_id = int(txn['category_id'])
     id = merchant_id if merchant_id else merchant
     custom_categorization = get_stored_data(wf, 'custom_categorization', {})

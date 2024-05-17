@@ -435,6 +435,7 @@ def main(wf):
     if not client_id:
         wf.add_item('No Client ID key set...',
                     'Please use pd clientid to set your Plaid Client ID.',
+                    autocomplete='clientid ',
                     valid=False,
                     icon="icons/ui/warning.png")
         wf.send_feedback()
@@ -444,6 +445,7 @@ def main(wf):
     if not secret:
         wf.add_item(f'No Client Secret key set for {environ}...',
                     'Please use pd secret to set your Plaid Client Secret.',
+                    autocomplete='secret ',
                     valid=False,
                     icon="icons/ui/warning.png")
 #        wf.send_feedback()
@@ -453,6 +455,7 @@ def main(wf):
     if not user_id:
         wf.add_item(f'No {get_environment(wf)} User set...',
                     'Please use pd userid to set your User ID - can be anything you choose',
+                    autocomplete='userid ',
                     valid=False,
                     icon="icons/ui/warning.png")
 #        wf.send_feedback()
@@ -477,12 +480,14 @@ def main(wf):
     if not items:
         wf.add_item('No Linked Financial Institutions Found...',
                     'Please use pd link to link your bank accounts',
+                    autocomplete='link ',
                     valid=False,
                     icon="icons/ui/no-bank.png")
     
     if items and (not accounts or len(accounts) < 1):
         wf.add_item('No Accounts...',
                     'Please use pd update - to update your Accounts and Transactions.',
+                    autocomplete='update ',
                     valid=False,
                     icon="icons/ui/empty.png")
 #        wf.send_feedback()

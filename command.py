@@ -59,7 +59,7 @@ def update_items(wf, plaid):
             accounts[actlist[i]['account_id']] = actlist[i]
         txns = plaid.get_transactions(single, merchants, categories)
         for t in txns:
-            #log.debug(t)
+            log.debug(t)
             db.save_txn(t, wf)
     set_secure_value(wf, 'accounts', accounts)
     set_stored_data(wf, 'merchants', merchants)
