@@ -269,4 +269,4 @@ def extract_filter(query, token, type):
     return query,result
 
 def shellquote(s):
-    return "'" + s.replace("'", "'\\''") + "'"
+    return "'" + s.replace("'", "\\'") + "'"

@@ -13,6 +13,7 @@ import os
 import json
 import urllib.parse
 from dateutil.parser import parse 
+from shlex import quote
 
 log = None
 protos = ['https', 'http']
@@ -625,19 +626,23 @@ def main(wf):
                     else:
                         category = ' > '.join(categories[int(cat_id)]['list'])
                         subtitle = f"Change category to {category}"
-                    merchant = txn['merchant'] if txn['merchant'] else txn['txntext']
+                    merchant = txn['merchant'] if txn['merchant'] else ''
+                    txntext = txn['txntext']
+                    title = merchant if merchant else txntext
                     #log.debug(f"{merchant_id} | {txn['txntext']} | {merchant}")
-                    merchant = merchant.ljust(50)
+                    title = title.ljust(50)
                     arg = f' --merchant_id {merchant_id}' if cat_id and merchant_id else ''
                     if not arg:
-                        arg = f" --merchant {shellquote(merchant)}" if cat_id and not merchant_id else ''
+                        arg = f" --merchant {quote(merchant)}" if cat_id and (not merchant_id  and merchant) else ''
+                    if not arg:
+                        arg = f" --txntext {quote(txntext)}" if cat_id and (not merchant_id  and txntext) else ''
                     arg = arg + f' --category_id {cat_id}' if cat_id else ''
                     wf.add_item(
-                            title=f"{post}    {merchant}    ${txn['amount']:.2f}",
+                            title=f"{post}    {title}    ${txn['amount']:.2f}",
                             subtitle=subtitle,
                             autocomplete=f"txn:{txn['transaction_id']} ",
                             arg=arg,
-                            valid='--merchant' in arg and '--category_id' in arg,
+                            valid=('--merchant' in arg or '--txntext' in arg) and '--category_id' in arg,
                             icon=get_txn_icon(wf, txn, accounts, banks, merchants, categories, icons)
                     )
 

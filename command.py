@@ -135,6 +135,7 @@ def main(wf):
     parser.add_argument('--category_id', dest='category_id', nargs='?', default=None)
     parser.add_argument('--merchant_id', dest='merchant_id', nargs='?', default=None)
     parser.add_argument('--merchant', dest='merchant', nargs='?', default=None)
+    parser.add_argument('--txntext', dest='txntext', nargs='?', default=None)
     parser.add_argument('--acctid', dest='acctid', nargs='?', default=None)
     # add an optional (nargs='?') --update argument and save its
     # value to 'apikey' (dest). This will be called from a separate "Run Script"
@@ -207,7 +208,8 @@ def main(wf):
             qnotify('Plaid', 'Account Filter Failed')
         return 0  # 0 means script exited cleanly
     
-    if args.category_id and (args.merchant_id or args.merchant):
+    log.debug(f"{args.category_id} : {args.merchant}")
+    if args.category_id and (args.merchant_id or args.merchant or args.txntext):
         merchants = get_stored_data(wf, 'merchants', {})
         category_id = int(args.category_id)
         id = args.merchant_id if args.merchant_id is not None else args.merchant
@@ -215,7 +217,7 @@ def main(wf):
         merchant = merchants[args.merchant_id]['name'] if args.merchant_id else args.merchant
         category = category_name(wf, category_id)
         db = TxnDB(get_db_file(wf), wf.logger)
-        db.update_txn_category(category_id, args.merchant_id, merchant, category_name(wf, category_id, True))
+        db.update_txn_category(category_id, args.merchant_id, merchant, args.txntext, category_name(wf, category_id, True))
         qnotify('Plaid', f'{merchant} is now {category}')
         return 0  # 0 means script exited cleanly
     

@@ -37,10 +37,10 @@ class TxnDB:
             cur = con.cursor()
             cur.executescript(sql)
             
-    def update_txn_category(self, category_id, merchant_id, merchant, cat_name):
-        column_value = merchant_id if merchant_id else merchant
+    def update_txn_category(self, category_id, merchant_id, merchant, txntext, cat_name):
+        column_value = merchant_id if merchant_id else (merchant if merchant else txntext)
         params = {'category_id': int(category_id), 'categories': cat_name, 'column_value': column_value}
-        column = 'merchant_id' if merchant_id else 'merchant'
+        column = 'merchant_id' if merchant_id else ('merchant' if merchant else 'txntext')
         con = sqlite3.connect(self.file)
         with con:
             cur = con.cursor()
@@ -56,7 +56,7 @@ class TxnDB:
         post = datetime.strptime(txn['date'], '%Y-%m-%d')
         amount = txn['amount']
         category_id = get_category(wf, txn)
-        categories = category_name(wf, category_id)
+        categories = category_name(wf, category_id, True)
         currency = txn['iso_currency_code']
         merchant = txn['merchant_name']
         merchant_id = txn['merchant_entity_id']
