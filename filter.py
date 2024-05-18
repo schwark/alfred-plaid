@@ -644,11 +644,14 @@ def main(wf):
                 custom_categories = get_stored_data(wf, 'custom_categorization', {})
                 for txn in txn_list:
                     merchant_id = txn['merchant_id']
+                    acct = accounts[txn['account_id']]
                     post = format_post_date(txn['post'])
+                    acct_name = acct['nick'] if 'nick' in acct else acct['name']
+
                     if not cat_id or not txn_id:
                         category_id = get_category(wf, txn, custom_categories)
                         category = ' > '.join(categories[category_id]['list'])
-                        subtitle = f"{category}     {txn['txntext']}"
+                        subtitle = f"{acct_name} | {category}     {txn['txntext']}"
                     else:
                         category = ' > '.join(categories[int(cat_id)]['list'])
                         subtitle = f"Change category to {category}"
