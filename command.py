@@ -3,10 +3,10 @@
 import sys
 import argparse
 from workflow import Workflow, PasswordNotFound
-from common import qnotify, error, get_stored_data, open_url, wait_for_public_token, get_link_func, CERT_FILE, KEY_FILE, set_stored_data
+from common import qnotify, error, get_stored_data, open_url, wait_for_public_token, get_link_func, CERT_FILE, KEY_FILE, set_stored_data, ICONS_DEFAULT
 from plaid import Plaid
 from server import run_server, stop_server
-from common import get_environment, get_secure_value, set_secure_value, set_current_user, ALL_ENV, ALL_USER, reset_secure_values, get_current_user, get_db_file, get_protocol, set_category, get_category, category_name
+from common import get_environment, get_secure_value, set_secure_value, set_current_user, ALL_ENV, ALL_USER, reset_secure_values, get_current_user, get_db_file, get_protocol, set_category, get_category, category_name, get_category_icon, get_bank_icon
 from db import TxnDB
 import os
 
@@ -17,6 +17,8 @@ def change_env(wf, env):
     
 def update_items(wf, plaid):
     items = get_secure_value(wf, 'items', {})
+    banks = get_stored_data(wf, 'banks', {})
+    icons = get_stored_data(wf, 'icons', ICONS_DEFAULT)
     for item_id in items:
         item = items[item_id]
         result = plaid.get_item(item['access_token'])
@@ -24,7 +26,14 @@ def update_items(wf, plaid):
         item['error'] = result['item']['error']
         item['consent_expiration_time'] = result['item']['consent_expiration_time']
         items[item['item_id']] = item
+        if item['institution_id'] not in banks:
+            bank = plaid.get_institution_by_id(item['institution_id'])
+            if bank:
+                banks[item['institution_id']] = bank
+                banks[item['institution_id']]['icon'] = get_bank_icon(wf, item['institution_id'], banks, icons)
     set_secure_value(wf, 'items', items)
+    set_stored_data(wf, 'banks', banks)
+    set_stored_data(wf, 'icons', icons)
 
 def add_item(wf, item):
     if not item: return
@@ -35,9 +44,14 @@ def add_item(wf, item):
 def update_categories(wf, plaid):
     log.debug('updating categories...')
     categories = get_stored_data(wf, 'categories', {})
+    icons = get_stored_data(wf, 'icons', ICONS_DEFAULT)
     newcats = plaid.get_categories(wf)
     categories = {**categories, **newcats}
-    categories['zzz'] = {'id': 'zzz', 'list':[], 'icon': None}
+    for category_id in categories:
+        icon = get_category_icon(wf, category_id, categories, icons)
+        if icon: categories[category_id]['icon'] = icon
+    categories[0] = {'id': 0, 'list':[], 'icon': None}
+    #log.debug(categories)
     set_stored_data(wf, 'categories', categories)
     return categories
 
@@ -49,6 +63,7 @@ def reset_cursors(wf):
 
 def update_transactions(wf, plaid):
     log.debug('updating transactions...')
+    txns = None
     db = TxnDB(get_db_file(wf), wf.logger)
     
     update_items(wf, plaid)
@@ -57,29 +72,36 @@ def update_transactions(wf, plaid):
     merchants = get_stored_data(wf, 'merchants', {})
     categories = get_stored_data(wf, 'categories', {})
     banks = get_stored_data(wf, 'banks', {})
-    if 'zzz' not in categories:
+    if 0 not in categories:
         categories = update_categories(wf, plaid)
     if not items:
         log.debug('No items found. Please add items first..')
         qnotify('Plaid', 'No Items Found!')
     for item_id in items:
-        log.debug('updating item '+item_id)
-        single = items[item_id]
-        actlist = plaid.get_accounts(single, banks)
-        if 'ITEM_LOGIN_REQUIRED' == actlist:
-            items[item_id]['error'] = actlist
-            log.debug(f'{item_id} item has error {actlist}')
-            set_secure_value(wf, 'items', items)
-        elif type(actlist) is list and 'error' in items[item_id] and items[item_id]['error']:
-            items[item_id]['error'] = None
-            set_secure_value(wf, 'items', items)            
-        for i in range(len(actlist)):
-            #log.debug(actlist[i])
-            accounts[actlist[i]['account_id']] = actlist[i]
-        txns = plaid.get_transactions(single, merchants, categories)
-        for t in txns:
-            log.debug(t)
-            db.save_txn(t, wf)
+        try:
+            log.debug('updating item '+item_id)
+            single = items[item_id]
+            if items[item_id]['error']: 
+                log.debug(f"{banks[single['institution_id']]['name']} has an error.. Skipping..")
+                qnotify('Plaid', f"{banks[single['institution_id']]['name']} needs auth update")
+                continue
+            actlist = plaid.get_accounts(single, banks)
+            if 'ITEM_LOGIN_REQUIRED' == actlist:
+                items[item_id]['error'] = actlist
+                log.debug(f'{item_id} item has error {actlist}')
+                qnotify('Plaid', f"{banks[single['institution_id']]['name']} needs auth update")
+            elif type(actlist) is list and 'error' in items[item_id] and items[item_id]['error']:
+                items[item_id]['error'] = None
+            for i in range(len(actlist)):
+                log.debug(actlist[i])
+                accounts[actlist[i]['account_id']] = actlist[i]
+            txns = plaid.get_transactions(single, merchants)
+            for t in txns:
+                log.debug(t)
+                db.save_txn(t, wf)
+        except: 
+            pass
+    set_secure_value(wf, 'items', items)            
     set_secure_value(wf, 'accounts', accounts)
     set_stored_data(wf, 'merchants', merchants)
     set_stored_data(wf, 'categories', categories)
@@ -235,12 +257,16 @@ def main(wf):
         error('Secret not found')
         return 0
         
-    plaid = Plaid(client_id=client_id, secret=secret, user_id=user_id, environment=environ,logger=wf.logger, datadir=wf.datadir)
+    plaid = Plaid(client_id=client_id, secret=secret, user_id=user_id, wf=wf)
             
     # Update items if that is passed in
     if args.update:
-        result = update_transactions(wf, plaid)
-        message = 'Accounts & Transactions updated' if result else 'Update failed'
+        message = 'Accounts & Transactions updated'
+        try:
+            result = update_transactions(wf, plaid)
+        except Exception as e:
+            log.debug(e)
+            message = 'Update failed'    
         qnotify('Plaid', message)
         return 0  # 0 means script exited cleanly
     

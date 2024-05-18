@@ -1,6 +1,6 @@
 from workflow import web
 import json
-from common import ensure_icon, get_protocol, get_category_icon, qnotify
+from common import get_category_icon, qnotify, get_merchant_icon, get_environment, get_bank_icon, get_stored_data, ICONS_DEFAULT
 
 ERROR_MESSAGES = {
     'default': "Plaid API Error",
@@ -8,13 +8,13 @@ ERROR_MESSAGES = {
 }
 
 class Plaid:
-    def __init__(self, client_id, secret, user_id, environment='sandbox', logger=None, datadir=None):
+    def __init__(self, client_id, secret, user_id, wf):
         self.client_id = client_id
         self.secret = secret
         self.user_id = user_id
-        self.environment = str(environment)
-        self.logger = logger
-        self.datadir = datadir
+        self.environment = str(get_environment(wf))
+        self.logger = wf.logger
+        self.wf = wf
         
     def debug(self, text):
         if(self.logger): self.logger.debug(text)
@@ -34,27 +34,27 @@ class Plaid:
         if(r.status_code == 200):
             # Parse the JSON returned by pinboard and extract the posts
             result = r.json()
-            #self.debug(str(result))
         else:
             result = r.json()
             if result and 400 == r.status_code and 'error_code' in result:
                 error = ERROR_MESSAGES[result['error_code']] if result['error_code'] in ERROR_MESSAGES else ERROR_MESSAGES['default']
                 qnotify('Plaid', error)
+        self.debug(str(result))
         return result   
     
     def get_categories(self, wf):
         categories = {}
+        icons = get_stored_data(wf, 'icons', ICONS_DEFAULT)
         result = self.api(path="/categories/get", data={}, no_auth=True)
         if 'categories' in result:
             for category in result['categories']:
                 id = int(category['category_id'])
-                icon = get_category_icon(wf, category['hierarchy'])
                 #wf.logger.debug(f"{category['hierarchy']}:  {icon}")
                 categories[id] = {
                     'id': id,
-                    'list': category['hierarchy'],
-                    'icon': icon
+                    'list': category['hierarchy']
                 }
+                categories[id]['icon'] = get_category_icon(wf, id, categories, icons)
         return categories
     
     def get_link_token(self, item, proto='https'):
@@ -104,6 +104,7 @@ class Plaid:
         return result
     
     def get_accounts(self, item, banks):
+        icons = get_stored_data(self.wf, 'icons', ICONS_DEFAULT)
         data = {"access_token": item.get('access_token')}
         result = self.api(path="/accounts/get", data=data)
         if 'error_code' in result:
@@ -116,8 +117,8 @@ class Plaid:
                 banks[result['item']['institution_id']] = bank
             else:
                 bank = banks[result['item']['institution_id']]
-            if bank: 
-                ensure_icon(self.datadir, bank['name'],'bank',bank['logo'] if 'logo' in bank and bank['logo'] else None)
+            if bank:
+                bank['icon'] = get_bank_icon(self.wf, result['item']['institution_id'], banks, icons)
         if 'accounts' in result:
             if bank:
                 for i in range(len(result['accounts'])):
@@ -127,31 +128,33 @@ class Plaid:
         else:
             return None
         
-    def update_metadata(self, txns, merchants, categories):
+    def update_metadata(self, txns, merchants, icons):
         for txn in txns:
             if 'merchant_entity_id' in txn and txn['merchant_entity_id']:
-                if txn['merchant_entity_id'] not in merchants:
-                    merchants[txn['merchant_entity_id']] = {
-                        'id': txn['merchant_entity_id'],
+                merchant_id = txn['merchant_entity_id']
+                if merchant_id not in merchants:
+                    merchants[merchant_id] = {
+                        'id': merchant_id,
                         'name': txn['merchant_name'] if 'merchant_name' in txn else None,
                         'category_id': txn['category_id'],
-                        'icon': txn['logo_url'] if 'logo_url' in txn else None,
+                        'logo': txn['logo_url'] if 'logo_url' in txn else None,
                         'url': txn['website'] if 'website' in txn else None,
                         'categories': None
                     }
-                ensure_icon(self.datadir, txn['merchant_name'],'merchant',txn['logo_url'])
-        return merchants, categories
+                    merchants[merchant_id]['icon'] = get_merchant_icon(self.wf, merchant_id, merchants, icons)
+        return merchants
 
-    def get_transactions(self, item, merchants, categories):
+    def get_transactions(self, item, merchants):
         done = False
         txns = []
+        icons = get_stored_data(self.wf, 'icons', ICONS_DEFAULT)
         while(not done):
             data = {"access_token": item.get('access_token')}
             if 'txn_cursor' in item: data['cursor'] = item.get('txn_cursor')
             result = self.api(path="/transactions/sync", data=data)
             if 'added' in result:
                 txns.extend(result['added'])
-                self.update_metadata(result['added'], merchants, categories)
+                self.update_metadata(result['added'], merchants, icons)
             if 'next_cursor' in result:
                 item['txn_cursor'] = result['next_cursor']
             done = not result['has_more']

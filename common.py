@@ -1,11 +1,12 @@
 import subprocess
 from time import sleep
 import re
-from workflow import PasswordNotFound
+from workflow import PasswordNotFound, web
 import json
 import os.path
-from urllib.request import urlretrieve
-from dateutil.parser import parse
+from os import listdir
+from os.path import isfile, join, splitext
+import base64
 
 SERVER_HOST='localhost'
 SERVER_PORT=8383
@@ -17,28 +18,103 @@ ALL_USER = 'config'
 CERT_FILE = 'cert.pem'
 KEY_FILE = 'key.pem'
 STORAGE = None
+ICONS_DEFAULT = {'merchant': {},'category': {},'bank': {}}
+
+def download_file(filename, url):
+    r = web.get(url, allow_redirects=True)
+    r.save_to_path(filename)
+
+def ensure_icon(wf, dir, site, type, url=None):
+    if not site: return None
+    site = re.sub(r'[^a-z0-9]','',site.lower())
+    size = 64
+    dir = ensure_icon_dir(dir, type)
+    icon = f'{dir}/{site}.png'
+    if not os.path.exists(icon):
+        if url and 'bank' == type and not url.startswith('http'): # base64 encoded image
+            with open(icon, "wb") as fh:
+                fh.write(base64.urlsafe_b64decode(url))
+        else:
+            url = url if url else (f'https://www.google.com/s2/favicons?domain={site}.com&sz={size}' if 'category' != type else None)
+            if url:
+                try:
+                    download_file(icon, url)
+                except Exception as e:
+                    wf.logger.debug(e)
+                    pass
+    return icon if os.path.exists(icon) else '' # to differentiate from None which means never tried
+
+def get_icon(wf, type, icon, icons=None, url=None, force=False):
+    wf.logger.debug(f"getting icon for {type} and {icon}")
+    base_dir = wf.datafile(f'icons.{get_environment(wf)}')
+    icon = re.sub(r'[^a-z0-9]', '', icon.lower())
+    icons = get_stored_data(wf, 'icons', ICONS_DEFAULT) if not icons else icons
+    if force or not icons[type]:
+        dirs = [f"{base_dir}/{type}/", f"icons/{type}/"]
+        for dir in dirs:
+            files = [f for f in (listdir(dir) if os.path.exists(dir) else []) if isfile(join(dir, f))]
+            for f in files:
+                icons[type][splitext(f)[0]] = join(dir,f)
+        set_stored_data(wf, 'icons', icons)
+        
+    result = icons[type][icon] if icon in icons[type] else None
+    wf.logger.debug(f"result is {result}")
+    #if result is None and url:
+    if not result:
+        result = ensure_icon(wf, base_dir, icon, type, url)
+        if result is not None: 
+            icons[type][icon] = result
+            set_stored_data(wf, 'icons', icons)
+    return result
 
 def category_name(wf, category_id, full=False):
     categories = get_stored_data(wf, 'categories', {})
     names = categories[category_id]['list']
     return ','.join(names) if full else names[-1]
 
-def get_category_icon(wf, cats):
-    for i in range(len(cats), 0, -1):
-        #wf.logger.debug(cats)
-        cat = cats[i-1]
-        words = re.split(r'\s+|\'|,', cat)
-        for i in range(len(words),0,-1):
-            substr = ''.join(words[0:i])
-            if "s" == substr[-1]: substr = substr[:-1]
-            icon = f'icons/category/{substr.lower()}.png'
-            if os.path.exists(icon): return icon
-        for i in range(len(words)):
-            substr = ''.join(words[-(i+1):])
-            if "s" == substr[-1]: substr = substr[:-1]
-            icon = f'icons/category/{substr.lower()}.png'
-            if os.path.exists(icon): return icon
-            
+def get_bank_icon(wf, institution_id, banks, icons):
+    if not institution_id: return None
+    bank = banks[institution_id]
+    if not 'icon' in bank or not bank['icon']:
+        name = bank['name']
+        logo = bank['logo']
+        banks[institution_id]['icon'] = get_icon(wf, 'bank', name, icons, logo)
+    return banks[institution_id]['icon']
+
+def get_merchant_icon(wf, merchant_id, merchants, icons):
+    if not merchant_id: return None
+    if not 'icon' in merchants[merchant_id]:
+        merchant = merchants[merchant_id]['name']
+        merchant_url = merchants[merchant_id]['logo']
+        merchants[merchant_id]['icon'] = get_icon(wf, 'merchant', merchant, icons, merchant_url)
+    return merchants[merchant_id]['icon']
+
+def get_category_icon(wf, category_id, categories, icons):
+    if not category_id: return None
+    category_id = int(category_id)
+    if not 'icon' in categories[category_id]:
+        categories[category_id]['icon'] = None
+        cats = categories[category_id]['list']
+        for i in range(len(cats), 0, -1):
+            if categories[category_id]['icon']: break
+            #wf.logger.debug(cats)
+            cat = cats[i-1]
+            words = re.split(r'\s+|\'|,', cat)
+            for i in range(len(words),0,-1):
+                if categories[category_id]['icon']: break
+                substr = ''.join(words[0:i])
+                if "s" == substr[-1]: substr = substr[:-1]
+                icon = get_icon(wf, 'category', substr.lower(), icons)
+                if icon: 
+                    categories[category_id]['icon'] = icon
+            for i in range(len(words)):
+                if categories[category_id]['icon']: break
+                substr = ''.join(words[-(i+1):])
+                if "s" == substr[-1]: substr = substr[:-1]
+                icon = get_icon(wf, 'category', substr.lower(), icons)
+                if icon: 
+                    categories[category_id]['icon'] = icon
+    return categories[category_id]['icon']
 
 def get_db_file(wf):
     return wf.datafile(get_environment(wf)+'.db')
@@ -53,27 +129,11 @@ def get_link_func(wf):
 def get_environment(wf):
     return wf.settings['environment'] if 'environment' in wf.settings else DEFAULT_ENV
 
-def ensure_icon_dir(datadir, type):
-    dir = f'{datadir}/icons/{type}'
+def ensure_icon_dir(dir, type):
+    dir = f'{dir}/{type}'
     if not os.path.exists(dir):
         os.makedirs(dir)
     return dir
-
-def ensure_icon(datadir, site, type, url=None):
-    if not site: return None
-    site = site.lower().replace(r'[^a-z0-9]','')
-    size = 64
-    dir = ensure_icon_dir(datadir, type)
-    icon = f'{dir}/{site}.png'
-    if not os.path.exists(icon):
-        #url = url if url else f'https://icon.horse/icon/{site}.com'
-        url = url if url else (f'https://www.google.com/s2/favicons?domain={site}.com&sz={size}' if 'category' != type else None)
-        if url:
-            try:
-                urlretrieve(url, icon)
-            except:
-                pass
-    return icon if os.path.exists(icon) else None
 
 def get_cmd_output(cmd, wf=None):
     output = (subprocess.check_output(cmd, shell=True)).decode('utf-8')
@@ -180,12 +240,14 @@ def reset_secure_values(wf):
     STORAGE = {}
     save_storage(wf)
     
-def get_category(wf, txn):
+def get_category(wf, txn, custom_cats=None):
     merchant_id = (txn['merchant_entity_id'] if 'merchant_entity_id' in txn else None) if type(txn) is dict else txn['merchant_id']
     merchant = (txn['merchant_name'] if 'merchant_name' in txn else None) if type(txn) is dict else txn['merchant']
+    txntext = (txn['name'] if 'name' in txn else None) if type(txn) is dict else txn['txntext']
+    merchant = merchant if merchant else txntext
     category_id = int(txn['category_id'])
     id = merchant_id if merchant_id else merchant
-    custom_categorization = get_stored_data(wf, 'custom_categorization', {})
+    custom_categorization = get_stored_data(wf, 'custom_categorization', {}) if custom_cats is None else custom_cats
     return int(custom_categorization[id] if custom_categorization and id in custom_categorization else category_id)
 
 def set_category(wf, id, category_id):

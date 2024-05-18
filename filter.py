@@ -4,7 +4,7 @@ import sys
 import argparse
 from workflow.workflow import MATCH_ATOM, MATCH_STARTSWITH, MATCH_SUBSTRING, MATCH_ALL, MATCH_INITIALS, MATCH_CAPITALS, MATCH_INITIALS_STARTSWITH, MATCH_INITIALS_CONTAIN
 from workflow import Workflow, ICON_NOTE, ICON_BURN, PasswordNotFound
-from common import get_stored_data, ensure_icon, get_environment, get_protocol, get_secure_value, set_secure_value, get_current_user, ALL_ENV, ALL_USER, get_db_file, get_category_icon, get_category, extract_filter, shellquote
+from common import get_stored_data, get_environment, get_protocol, get_secure_value, set_secure_value, get_current_user, ALL_ENV, ALL_USER, get_db_file, get_category_icon, get_category, extract_filter, shellquote, get_merchant_icon, get_bank_icon, get_category_icon, ICONS_DEFAULT
 from db import TxnDB
 from dateutil.parser import parse 
 from datetime import timedelta, datetime
@@ -109,34 +109,13 @@ def get_acct_subtitle(acct):
         if 'limit' in acct['balances'] and acct['balances']['limit']:
             result = f"{result}|   limit: ${acct['balances']['limit']:,.2f} "
     return result
-
-def get_bank_icon(wf, account, banks):
-    if not 'institution_id' in account or account['institution_id'] not in banks: return None
-    bank = banks[account['institution_id']]
-    name = bank['name']
-    logo = bank['logo']
-    return ensure_icon(wf.datadir, name, 'bank', logo)
-              
-def get_txn_icon(wf, txn, accounts, banks, merchants, categories):
-    #log.debug(accounts)
-    account = accounts[txn['account_id']]
-    if 'institution_id' in account:
-        bank = banks[account['institution_id']]
-        bank = bank['name'].lower().replace(' ','')
-    else:
-        bank = None
-    merchant = txn['merchant']
-    merchant_url = merchants[txn['merchant_entity_id']]['icon'] if 'merchant_entity_id' in txn and txn['merchant_entity_id'] and txn['merchant_entity_id'] in merchants else None
-    merchant_name = re.sub(r'[^a-z0-9]+', '', merchant.lower()) if merchant else None
-    if merchant_name:
-        micon = ensure_icon(wf.datadir, merchant, 'merchant', merchant_url) if not os.path.exists(f"icons/merchant/{merchant_name}.png") else f"icons/merchant/{merchant_name}.png"
-    else:
-        micon = None
-    category_id = int(txn['category_id'])
-    #log.debug(f"{category_id}, {categories[category_id]['icon']}")
-    cicon = categories[category_id]['icon'] if (category_id and (category_id in categories) and ('icon' in categories[category_id])) else None
-    bicon = ensure_icon(wf.datadir, bank, 'bank') if not cicon else None
-    icon = micon if micon else (cicon if cicon else bicon)
+       
+def get_txn_icon(wf, txn, accounts, banks, merchants, categories, icons):
+    icon = get_merchant_icon(wf, txn['merchant_id'], merchants, icons)
+    if icon: return icon
+    icon = get_category_icon(wf, txn['category_id'], categories, icons)
+    if icon: return icon
+    icon = get_bank_icon(wf, accounts[txn['account_id']]['institution_id'], banks, icons)
     return icon
 
 def add_config_commands(args, config_commands):
@@ -170,7 +149,7 @@ def add_item_errors(wf, query):
     if 'link ' in query: return
     items = get_secure_value(wf, 'items', {})
     for item in items:
-        if items[item]['error']:
+        if 'error' in items[item] and items[item]['error']:
             wf.add_item(
                 title="Some items have errors..",
                 subtitle="Please check and re-link the appropriate accounts using pd link",
@@ -198,8 +177,8 @@ def main(wf):
     categories = get_stored_data(wf, 'categories')
     environ = get_environment(wf)
     items = get_secure_value(wf, 'items', {})
-    log.debug(items)
-
+    icons = get_stored_data(wf, 'icons', ICONS_DEFAULT)
+    
     config_commands = {
         'link': {
             'title': 'Link or update item',
@@ -416,7 +395,7 @@ def main(wf):
                 'suffix': '\:',
                 'options': categories,
                 'filter_func': lambda x: f"{', '.join(categories[x]['list'])}",
-                'id': lambda x: x if 'zzz' != x else None,
+                'id': lambda x: x if 0 != x else None,
                 'valid': False            
         },
         'link': {
@@ -424,7 +403,7 @@ def main(wf):
                 'special_items_func': add_new_link,
                 'title': lambda x: banks[x['institution_id']]['name'],
                 'subtitle': lambda x: f"{'*ERROR* ' if x['error'] else ''} Update link to {banks[x['institution_id']]['name']}",
-                'icon': lambda x: banks[x['institution_id']]['logo'] if not x['error'] else 'icons/ui/broken.png',
+                'icon': lambda x: banks[x['institution_id']]['icon'] if not x['error'] else 'icons/ui/broken.png',
                 'suffix': ' ',
                 'arg': lambda x: f"--link {x}",
                 'options': items,
@@ -550,7 +529,6 @@ def main(wf):
                     name = item if is_array else config_options[opt]['options'][item]
                     id = config_options[opt]['id'](item) if 'id' in config_options[opt] else item
                     if not id: continue
-                    log.debug(name)
                     icon = config_options[opt]['icon'](name) if 'icon' in config_options[opt] else f"icons/ui/{name.lower().replace(' ','-')}.png"
                     suffix = suffix.replace("\\",'')
                     wf.add_item(
@@ -587,7 +565,6 @@ def main(wf):
                             valid=True,
                             icon="icons/ui/all.png"
                 )   
-                log.debug(matches)             
                 for acct in matches:
                     filtered = True if acct['account_id'] in acct_filter else False
                     name = acct['name'] if 'name' in acct and acct['name'] else acct['official_name']
@@ -596,7 +573,7 @@ def main(wf):
                                 subtitle=('filtered | ' if filtered else '')+get_acct_subtitle(acct),
                                 arg=' --acctid '+acct['account_id']+('-' if filtered else ''),
                                 valid=True,
-                                icon=get_bank_icon(wf, acct, banks)
+                                icon=get_bank_icon(wf, acct['institution_id'], banks, icons)
                         )                
         elif re.match(r'dt\:[^\s]*$', query):
             found = re.compile('dt\:([^\s]+)').search(query)
@@ -635,24 +612,25 @@ def main(wf):
                         icon='icons/ui/chart.png'
                     )
                 txn_list = txns #[:30] if len(txns) > 30 else txns                
+                query, cat_id = extract_filter(query, 'cat', 'text')
+                query, txn_id = extract_filter(query, 'txn', 'text')
+                custom_categories = get_stored_data(wf, 'custom_categorization', {})
                 for txn in txn_list:
-                    query, cat_id = extract_filter(query, 'cat', 'text')
-                    query, txn_id = extract_filter(query, 'txn', 'text')
                     merchant_id = txn['merchant_id']
                     post = format_post_date(txn['post'])
                     if not cat_id or not txn_id:
-                        category_id = get_category(wf, txn)
+                        category_id = get_category(wf, txn, custom_categories)
                         category = ' > '.join(categories[category_id]['list'])
                         subtitle = f"{category}     {txn['txntext']}"
                     else:
                         category = ' > '.join(categories[int(cat_id)]['list'])
                         subtitle = f"Change category to {category}"
                     merchant = txn['merchant'] if txn['merchant'] else txn['txntext']
-                    log.debug(f"{merchant_id} | {txn['txntext']} | {merchant}")
+                    #log.debug(f"{merchant_id} | {txn['txntext']} | {merchant}")
                     merchant = merchant.ljust(50)
                     arg = f' --merchant_id {merchant_id}' if cat_id and merchant_id else ''
                     if not arg:
-                        arg = f" --merchant {shellquote(txn['merchant'])}" if cat_id and not merchant_id else ''
+                        arg = f" --merchant {shellquote(merchant)}" if cat_id and not merchant_id else ''
                     arg = arg + f' --category_id {cat_id}' if cat_id else ''
                     wf.add_item(
                             title=f"{post}    {merchant}    ${txn['amount']:.2f}",
@@ -660,7 +638,7 @@ def main(wf):
                             autocomplete=f"txn:{txn['transaction_id']} ",
                             arg=arg,
                             valid='--merchant' in arg and '--category_id' in arg,
-                            icon=get_txn_icon(wf, txn, accounts, banks, merchants, categories)
+                            icon=get_txn_icon(wf, txn, accounts, banks, merchants, categories, icons)
                     )
 
         # Send the results to Alfred as XML
