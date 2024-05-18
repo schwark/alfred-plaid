@@ -147,7 +147,7 @@ def add_new_link(wf, query, opts):
     )
     
 def add_all_accounts(wf, query, opts):
-    if opts:
+    if opts and 'filter ' in query:
         wf.add_item(
                 title="All Accounts",
                 subtitle="Remove account filter - set to all accounts",
@@ -155,7 +155,7 @@ def add_all_accounts(wf, query, opts):
                 valid=True,
                 icon="icons/ui/all.png"
         )
-    else:
+    elif not opts:
         wf.add_item(
             title="No matching accounts found...",
             subtitle="Please try another search term",

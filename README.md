@@ -47,12 +47,26 @@ pd upcat
 ```
 This should be needed once a month or as needed - this updates the local cache of all the categories
 
-## Account Details and Filtering
+## Account Details
 
 ```
 pd act:
 ```
-This gives the list of accounts and balances, and selecting any of them also filters all further queries to that account. Mulitple accounts can be filtered on, by selecting more than one consecutively. Selecting "All Accounts" will reset account fltering
+This gives the list of accounts and balances, and selecting any of them also filters all further queries to that account. Mulitple accounts can be filtered on, by selecting more than one consecutively. Selecting "All Accounts" will reset account filtering
+
+## Account Filtering
+
+```
+pd filter act:<acct-name>
+```
+This allows for adding or removing accounts to a permanent account filter that applies to all further queries till it is set or removed again.
+
+## Account Nicknaming
+
+```
+pd nick <nickname> act:<acct-name>
+```
+This allows for adding a nickname to any given account
 
 ## Environment Selection
 
@@ -61,15 +75,16 @@ pd env
 ```
 The environment should be set to production, but using Sandbox will allow you to test this with dummy accounts.
 
-## Basic Transaction queries
+## Basic Transaction Search queries
 
 ```
-pd <dt:(this|last)-(week|month|quarter|half|year)?> <dtf:from-date?> <dtt:to-date?> <amtt:to-amount?> <amtf:from-amount?> <cht:?>
+pd <act:acct-name?> <dt:(this|last)-(week|month|quarter|half|year)?> <dtf:from-date?> <dtt:to-date?> <amtt:to-amount?> <amtf:from-amount?> <cht:?>
 <ct:p(ie)|(d)oughnut|b(ar)|l(ine)?> <ta:d(ay)|w(eek)|m(onth)?> <ma:m(erchant)|c(ategory)?> <cat:cat-id?> <search-term> 
 ```
 The search term is the only required entry, further filtering is possible by using modifiers. All those additional fiters are optional. If any of the other modifiers are specified, the search term is also optional
 
 ```
+act:<acct>              filter transactions to only this account for this query only
 dtf:<from-date>         transactions on or after this date
 dtt:<to-date>           transactions on or before this date
 amtt:<to-amount>        transactions with amounts less than or equal to this amount
