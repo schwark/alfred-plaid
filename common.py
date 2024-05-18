@@ -45,8 +45,8 @@ def ensure_icon(wf, dir, site, type, url=None):
     return icon if os.path.exists(icon) else '' # to differentiate from None which means never tried
 
 def get_icon(wf, type, icon, icons=None, url=None, force=False):
-    wf.logger.debug(f"getting icon for {type} and {icon}")
-    base_dir = wf.datafile(f'icons.{get_environment(wf)}')
+    #wf.logger.debug(f"getting icon for {type} and {icon}")
+    base_dir = wf.datafile(f'{get_environment(wf)}.icons')
     icon = re.sub(r'[^a-z0-9]', '', icon.lower())
     icons = get_stored_data(wf, 'icons', ICONS_DEFAULT) if not icons else icons
     if force or not icons[type]:
@@ -58,13 +58,12 @@ def get_icon(wf, type, icon, icons=None, url=None, force=False):
         set_stored_data(wf, 'icons', icons)
         
     result = icons[type][icon] if icon in icons[type] else None
-    wf.logger.debug(f"result is {result}")
+    #wf.logger.debug(f"result is {result}")
     #if result is None and url:
     if not result:
         result = ensure_icon(wf, base_dir, icon, type, url)
         if result is not None: 
             icons[type][icon] = result
-            set_stored_data(wf, 'icons', icons)
     return result
 
 def category_name(wf, category_id, full=False):

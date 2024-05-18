@@ -8,7 +8,7 @@ from plaid import Plaid
 from server import run_server, stop_server
 from common import get_environment, get_secure_value, set_secure_value, set_current_user, ALL_ENV, ALL_USER, reset_secure_values, get_current_user, get_db_file, get_protocol, set_category, get_category, category_name, get_category_icon, get_bank_icon
 from db import TxnDB
-import os
+from time import time
 
 log = None
 
@@ -53,6 +53,7 @@ def update_categories(wf, plaid):
     categories[0] = {'id': 0, 'list':[], 'icon': None}
     #log.debug(categories)
     set_stored_data(wf, 'categories', categories)
+    set_stored_data(wf, 'icons', icons)
     return categories
 
 def reset_cursors(wf):
@@ -66,14 +67,20 @@ def update_transactions(wf, plaid):
     txns = None
     db = TxnDB(get_db_file(wf), wf.logger)
     
+    start = time()
     update_items(wf, plaid)
+    log.debug(f"{(time() - start):0.3f} to update items")
+    start = time()
     items = get_secure_value(wf, 'items', {})
     accounts = get_secure_value(wf, 'accounts', {})
     merchants = get_stored_data(wf, 'merchants', {})
     categories = get_stored_data(wf, 'categories', {})
     banks = get_stored_data(wf, 'banks', {})
+    log.debug(f"{(time() - start):0.3f} to load stored data")
     if 0 not in categories:
+        start = time()
         categories = update_categories(wf, plaid)
+        log.debug(f"{(time() - start):0.3f} to update categories")
     if not items:
         log.debug('No items found. Please add items first..')
         qnotify('Plaid', 'No Items Found!')
@@ -85,7 +92,9 @@ def update_transactions(wf, plaid):
                 log.debug(f"{banks[single['institution_id']]['name']} has an error.. Skipping..")
                 qnotify('Plaid', f"{banks[single['institution_id']]['name']} needs auth update")
                 continue
+            start = time()
             actlist = plaid.get_accounts(single, banks)
+            log.debug(f"{(time() - start):0.3f} to get accounts")
             if 'ITEM_LOGIN_REQUIRED' == actlist:
                 items[item_id]['error'] = actlist
                 log.debug(f'{item_id} item has error {actlist}')
@@ -95,10 +104,12 @@ def update_transactions(wf, plaid):
             for i in range(len(actlist)):
                 log.debug(actlist[i])
                 accounts[actlist[i]['account_id']] = actlist[i]
+            start = time()
             txns = plaid.get_transactions(single, merchants)
             for t in txns:
                 log.debug(t)
                 db.save_txn(t, wf)
+            log.debug(f"{(time() - start):0.3f} to get and save transactions")
         except: 
             pass
     set_secure_value(wf, 'items', items)            

@@ -1,6 +1,7 @@
 from workflow import web
 import json
-from common import get_category_icon, qnotify, get_merchant_icon, get_environment, get_bank_icon, get_stored_data, ICONS_DEFAULT
+from common import get_category_icon, qnotify, get_merchant_icon, get_environment, get_bank_icon, get_stored_data, ICONS_DEFAULT, set_stored_data
+from time import time
 
 ERROR_MESSAGES = {
     'default': "Plaid API Error",
@@ -141,7 +142,9 @@ class Plaid:
                         'url': txn['website'] if 'website' in txn else None,
                         'categories': None
                     }
+                    start = time()
                     merchants[merchant_id]['icon'] = get_merchant_icon(self.wf, merchant_id, merchants, icons)
+                    self.logger.debug(f"{(time() - start):0.3f} to get merchant icon")
         return merchants
 
     def get_transactions(self, item, merchants):
@@ -158,6 +161,7 @@ class Plaid:
             if 'next_cursor' in result:
                 item['txn_cursor'] = result['next_cursor']
             done = not result['has_more']
+        set_stored_data(self.wf, 'icons', icons)
         #self.debug(txns)
         return txns
     
