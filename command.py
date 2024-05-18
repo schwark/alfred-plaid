@@ -137,6 +137,8 @@ def main(wf):
     parser.add_argument('--merchant', dest='merchant', nargs='?', default=None)
     parser.add_argument('--txntext', dest='txntext', nargs='?', default=None)
     parser.add_argument('--acctid', dest='acctid', nargs='?', default=None)
+    parser.add_argument('--nick', dest='nick', nargs='?', default=None)
+    parser.add_argument('--filter', dest='filter', action='store_true', default=False)
     # add an optional (nargs='?') --update argument and save its
     # value to 'apikey' (dest). This will be called from a separate "Run Script"
     # action with the API key
@@ -188,25 +190,33 @@ def main(wf):
         qnotify('Plaid', 'Client ID Saved')
         return 0  # 0 means script exited cleanly
 
-    if args.acctid:  # Script was passed an API key
-        log.debug("saving filtered account id "+args.acctid)
-        acct_id = args.acctid[:-1] if '-' == args.acctid[-1] else args.acctid
+    if args.acctid:  # Script was passed an account ID
         accounts = get_secure_value(wf, 'accounts', {})
-        if 'all' == acct_id:
-            set_secure_value(wf, 'acct_filter', [])
-            qnotify('Plaid', 'Account Filter Removed')
-        elif acct_id in accounts:
-            acct_filter = get_secure_value(wf, 'acct_filter', [])
-            if acct_id not in acct_filter:
-                acct_filter.append(acct_id)
+        if args.filter:
+            log.debug("saving filtered account id "+args.acctid)
+            acct_id = args.acctid[:-1] if '-' == args.acctid[-1] else args.acctid
+            if 'all' == acct_id:
+                set_secure_value(wf, 'acct_filter', [])
+                qnotify('Plaid', 'Account Filter Removed')
+            elif acct_id in accounts:
+                acct_filter = get_secure_value(wf, 'acct_filter', [])
+                if acct_id not in acct_filter:
+                    acct_filter.append(acct_id)
+                else:
+                    acct_filter.remove(acct_id)
+                set_secure_value(wf, 'acct_filter', acct_filter)
+                name = ','.join([accounts[x]['name'] for x in acct_filter])
+                qnotify('Plaid', 'Account Filter: '+name if name else 'Account Filter Removed')
             else:
-                acct_filter.remove(acct_id)
-            set_secure_value(wf, 'acct_filter', acct_filter)
-            name = ','.join([accounts[x]['name'] for x in acct_filter])
-            qnotify('Plaid', 'Account Filter: '+name if name else 'Account Filter Removed')
-        else:
-            qnotify('Plaid', 'Account Filter Failed')
-        return 0  # 0 means script exited cleanly
+                qnotify('Plaid', 'Account Filter Failed')
+            return 0  # 0 means script exited cleanly
+        if args.nick:
+            log.debug("adding nickname to "+args.acctid)
+            accounts[args.acctid]['nick'] = args.nick
+            set_secure_value(wf, 'accounts', accounts)
+            name = accounts[args.acctid]['name']
+            qnotify('Plaid', f'{name} nicknamed to {args.nick}')
+            return 0
     
     log.debug(f"{args.category_id} : {args.merchant}")
     if args.category_id and (args.merchant_id or args.merchant or args.txntext):

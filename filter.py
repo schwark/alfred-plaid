@@ -136,7 +136,7 @@ def add_config_commands(args, config_commands):
 def extract_commands(wf, args, commands):
     return args
 
-def add_new_link(wf):
+def add_new_link(wf, query, opts):
     wf.add_item(
         title="Link a new item",
         subtitle="Link a new financial institution's accounts",
@@ -146,6 +146,23 @@ def add_new_link(wf):
         icon="icons/ui/newbank.png"
     )
     
+def add_all_accounts(wf, query, opts):
+    if opts:
+        wf.add_item(
+                title="All Accounts",
+                subtitle="Remove account filter - set to all accounts",
+                arg=' --acctid all',
+                valid=True,
+                icon="icons/ui/all.png"
+        )
+    else:
+        wf.add_item(
+            title="No matching accounts found...",
+            subtitle="Please try another search term",
+            valid=False,
+            icon="icons/ui/empty.png"
+        )
+
 def add_item_errors(wf, query):
     if 'link ' in query: return
     items = get_secure_value(wf, 'items', {})
@@ -159,6 +176,11 @@ def add_item_errors(wf, query):
                 icon="icons/ui/broken.png"
             )
             return
+
+def extract_nick(query):
+    found = re.findall(r'nick (.*)', query)
+    nick = re.sub(r'\w+\:[^\s]*','', found[0]).strip() if found else ''
+    return nick
             
 def main(wf):
     # build argument parser to parse script args and collect their
@@ -179,6 +201,7 @@ def main(wf):
     environ = get_environment(wf)
     items = get_secure_value(wf, 'items', {})
     icons = get_stored_data(wf, 'icons', ICONS_DEFAULT)
+    acct_filter = get_secure_value(wf, 'acct_filter', [])
     
     config_commands = {
         'link': {
@@ -212,6 +235,22 @@ def main(wf):
             'args': ' --upcat',
             'icon': "icons/ui/refresh.png",
             'valid': True
+        },
+        'filter': {
+            'title': 'Filter by Account',
+            'subtitle': 'Add account to permanent filter by account',
+            'autocomplete': 'filter ',
+            'args': ' --filter',
+            'icon': "icons/ui/filter.png",
+            'valid': False
+        },
+        'nick': {
+            'title': 'Nickname Account',
+            'subtitle': 'Set a nickname for an account',
+            'autocomplete': 'nick ',
+            'args': ' --nick',
+            'icon': "icons/ui/nickname.png",
+            'valid': False
         },
         'clientid': {
             'title': 'Set Client ID',
@@ -262,9 +301,9 @@ def main(wf):
             'valid': len(words) > 1 and words[1] in protos
         },
         'act': {
-            'title': 'Add an Account Filter',
-            'subtitle': 'Filter results to certain accounts',
-            'autocomplete': 'act: ',
+            'title': 'Choose an Account',
+            'subtitle': 'Choose an account to filter by or nickname',
+            'autocomplete': 'act:',
             'args': ' --acctid '+(words[1] if len(words)>1 else ''),
             'icon': "icons/ui/account.png",
             'valid': False
@@ -363,8 +402,8 @@ def main(wf):
         'env': {
                 'name': 'environment',
                 'title': lambda x: f"{x}",
-                'subtitle': lambda x: f"Set environment to {x}" if get_environment(wf) != x else f"Current environment is {x}",
-                'arg': lambda x: f"--environment {x}",
+                'subtitle': lambda x,y: f"Set environment to {x}" if get_environment(wf) != x else f"Current environment is {x}",
+                'arg': lambda x, y: f"--environment {x}",
                 'suffix': ' ',
                 'options': environments,
                 'valid': True
@@ -372,8 +411,8 @@ def main(wf):
         'proto': {
                 'name': 'protocol',
                 'title': lambda x: f"Use {x} for link server",
-                'subtitle': lambda x: f"Set protocol to {x}{'. NOTE: Browser will warn of not trusted site with https' if 'https' == x else ''}" if get_protocol(wf) != x else f"Current protocol is {x}",
-                'arg': lambda x: f"--proto {x}",
+                'subtitle': lambda x,y: f"Set protocol to {x}{'. NOTE: Browser will warn of not trusted site with https' if 'https' == x else ''}" if get_protocol(wf) != x else f"Current protocol is {x}",
+                'arg': lambda x, y: f"--proto {x}",
                 'suffix': ' ',
                 'options': protos,
                 'valid': True
@@ -381,7 +420,7 @@ def main(wf):
         'dt': {
                 'name': 'date range',
                 'title': lambda x: f"{x}",
-                'subtitle': lambda x: f"Filter transactions within {x.lower()}",
+                'subtitle': lambda x,y: f"Filter transactions within {x.lower()}",
                 'icon': lambda x: f"icons/ui/{x.split()[1]}.png",
                 'suffix': '\:',
                 'options': timeframes,
@@ -391,7 +430,7 @@ def main(wf):
         'cat': {
                 'name': 'categories',
                 'title': lambda x: f"{x['list'][-1]}",
-                'subtitle': lambda x: f"{' > '.join(x['list'])}",
+                'subtitle': lambda x,y: f"{' > '.join(x['list'])}",
                 'icon': lambda x: f"{x['icon']}",
                 'suffix': '\:',
                 'options': categories,
@@ -399,14 +438,26 @@ def main(wf):
                 'id': lambda x: x if 0 != x else None,
                 'valid': False            
         },
+        'act': {
+                'name': 'accounts',
+                'special_items_func': add_all_accounts,
+                'title': lambda x: f"{x['nick'] if 'nick' in x else x['name']}",
+                'subtitle': lambda x,y: f"{('Remove' if x['account_id'] in acct_filter else 'Add')+' this account to filter' if 'filter' in y else ('Set account nickname to '+extract_nick(y) if 'nick' in y else get_acct_subtitle(x))}",
+                'icon': lambda x: f"{banks[x['institution_id']]['icon']}",
+                'suffix': '\:',
+                'arg': lambda x, y: f"{'--filter ' if 'filter ' in y else ''}{'--nick '+quote(extract_nick(y)) if 'nick ' in y else ''} --acctid {x}",
+                'options': accounts,
+                'filter_func': lambda x: f"{banks[accounts[x]['institution_id']]['name']} {accounts[x]['name']} {accounts[x]['subtype']} {accounts[x]['nick'] if 'nick' in accounts[x] else ''} {x}",
+                'valid': lambda x, y: True if ('nick ' in x and len(words) > 2) or 'filter ' in x else False        
+        },
         'link': {
                 'name': 'items',
                 'special_items_func': add_new_link,
                 'title': lambda x: banks[x['institution_id']]['name'],
-                'subtitle': lambda x: f"{'*ERROR* ' if x['error'] else ''} Update link to {banks[x['institution_id']]['name']}",
+                'subtitle': lambda x,y: f"{'*ERROR* ' if x['error'] else ''} Update link to {banks[x['institution_id']]['name']}",
                 'icon': lambda x: banks[x['institution_id']]['icon'] if not x['error'] else 'icons/ui/broken.png',
                 'suffix': ' ',
-                'arg': lambda x: f"--link {x}",
+                'arg': lambda x, y: f"--link {x}",
                 'options': items,
                 'filter_func': lambda x: banks[items[x]['institution_id']]['name'],
                 'valid': True            
@@ -414,7 +465,7 @@ def main(wf):
         'ct': {
                 'name': 'chart type',
                 'title': lambda x: f"{x}",
-                'subtitle': lambda x: f"Chart type {x.lower()}",
+                'subtitle': lambda x,y: f"Chart type {x.lower()}",
                 'options': chart_types,
                 'suffix': '\:',
                 'set': {'holder': chart_options, 'field': 'ct'},
@@ -423,7 +474,7 @@ def main(wf):
         'ta': {
                 'name': 'time aggregates',
                 'title': lambda x: f"Aggregate transactions over {x}s",
-                'subtitle': lambda x: f"Totals transactions with a {x.lower()} for charting",
+                'subtitle': lambda x,y: f"Totals transactions with a {x.lower()} for charting",
                 'options': time_aggregates,
                 'suffix': '\:',
                 'set': {'holder': chart_options, 'field': 'ta'},
@@ -432,7 +483,7 @@ def main(wf):
         'ma': {
                 'name': 'time aggregates',
                 'title': lambda x: f"Aggregate transactions by {x}",
-                'subtitle': lambda x: f"Totals transactions by {x.lower()} for charting",
+                'subtitle': lambda x,y: f"Totals transactions by {x.lower()} for charting",
                 'options': merchant_aggregates,
                 'suffix': '\:',
                 'set': {'holder': chart_options, 'field': 'ma'},
@@ -518,26 +569,29 @@ def main(wf):
             suffix = config_options[opt]['suffix']
             opts = config_options[opt]['options']
             is_array = isinstance(opts, list)
-            if not is_array: opts = opts.keys()
+            if not is_array: opts = list(opts.keys())
             found = re.findall(fr'{opt}{suffix}([^\s]+)', query)
             term = found[0] if found else ''
-            if re.findall(fr'{opt}{suffix}[^\s]*$', query):
-                matches = wf.filter(term, opts, config_options[opt]['filter_func'] if 'filter_func' in config_options[opt] else (lambda x: x if is_array else opts[x]))
-                query = re.sub(fr'{opt}{suffix}[^\s]*$','',query)
+            if re.findall(fr'{opt}{suffix}[^\s]*\s*$', query):
+                matches = wf.filter(term, opts, config_options[opt]['filter_func'] if 'filter_func' in config_options[opt] else (lambda x: x if is_array else config_options[opt]['options'][x]))
+                query = re.sub(fr'{opt}{suffix}[^\s]*\s*$','',query)
                 if 'special_items_func' in config_options[opt]:
-                    config_options[opt]['special_items_func'](wf)
+                    config_options[opt]['special_items_func'](wf, query, opts)
                 for item in matches:
                     name = item if is_array else config_options[opt]['options'][item]
                     id = config_options[opt]['id'](item) if 'id' in config_options[opt] else item
                     if not id: continue
                     icon = config_options[opt]['icon'](name) if 'icon' in config_options[opt] else f"icons/ui/{name.lower().replace(' ','-')}.png"
+                    valid = config_options[opt]['valid']
+                    if type(valid) is not bool:
+                        valid = valid(query, item)
                     suffix = suffix.replace("\\",'')
                     wf.add_item(
                             title=config_options[opt]['title'](name),
-                            subtitle=config_options[opt]['subtitle'](name),
+                            subtitle=config_options[opt]['subtitle'](name, query),
                             autocomplete=f"{query}{opt}{suffix}{id} ",
-                            arg=config_options[opt]['arg'](item) if 'arg' in config_options[opt] else '',
-                            valid=config_options[opt]['valid'],
+                            arg=config_options[opt]['arg'](item, query) if 'arg' in config_options[opt] else '',
+                            valid=valid,
                             icon=icon
                     )
             if found:
@@ -546,37 +600,8 @@ def main(wf):
                     if 'set' in config_options[opt]:
                         config_options[opt]['set']['holder'][config_options[opt]['set']['field']] = term
     
-        if 'act:' in query:
-            query = query.replace('act:','').strip().lower()
-            matches = wf.filter(query, accounts.values(), lambda x: f"{x['name']} {x['subtype']}")
-            if not matches:
-                if items:
-                    wf.add_item(
-                            title="No matching accounts found...",
-                            subtitle="Please try another search term",
-                            valid=False,
-                            icon="icons/ui/empty.png"
-                    )
-            else:
-                acct_filter = get_secure_value(wf, 'acct_filter', [])
-                wf.add_item(
-                            title="All Accounts",
-                            subtitle="Remove account filter - set to all accounts",
-                            arg=' --acctid all',
-                            valid=True,
-                            icon="icons/ui/all.png"
-                )   
-                for acct in matches:
-                    filtered = True if acct['account_id'] in acct_filter else False
-                    name = acct['name'] if 'name' in acct and acct['name'] else acct['official_name']
-                    wf.add_item(
-                                title=name,
-                                subtitle=('filtered | ' if filtered else '')+get_acct_subtitle(acct),
-                                arg=' --acctid '+acct['account_id']+('-' if filtered else ''),
-                                valid=True,
-                                icon=get_bank_icon(wf, acct['institution_id'], banks, icons)
-                        )                
-        elif re.match(r'dt\:[^\s]*$', query):
+    
+        if re.match(r'dt\:[^\s]*$', query):
             found = re.compile('dt\:([^\s]+)').search(query)
             term = found.group(1) if found else ''
             matches = wf.filter(term, timeframes)
@@ -591,6 +616,7 @@ def main(wf):
                         icon=f"icons/ui/{length}.png"
                 )
         else:
+            log.debug(f"db query is {query}")
             db = TxnDB(get_db_file(wf), wf.logger)
             acct_filter = get_secure_value(wf, 'acct_filter', [])
             if acct_filter: query = f"{query} act:{','.join(acct_filter)}"
