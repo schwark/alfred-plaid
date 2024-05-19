@@ -151,7 +151,7 @@ def add_all_accounts(wf, query, opts):
         wf.add_item(
                 title="All Accounts",
                 subtitle="Remove account filter - set to all accounts",
-                arg=' --acctid all',
+                arg=' --filter --acctid all',
                 valid=True,
                 icon="icons/ui/all.png"
         )
