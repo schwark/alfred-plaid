@@ -73,6 +73,7 @@ def update_transactions(wf, plaid):
     start = time()
     items = get_secure_value(wf, 'items', {})
     accounts = get_secure_value(wf, 'accounts', {})
+    nicks = get_secure_value(wf, 'nicks', {})
     merchants = get_stored_data(wf, 'merchants', {})
     categories = get_stored_data(wf, 'categories', {})
     banks = get_stored_data(wf, 'banks', {})
@@ -103,6 +104,8 @@ def update_transactions(wf, plaid):
                 items[item_id]['error'] = None
             for i in range(len(actlist)):
                 log.debug(actlist[i])
+                if actlist[i]['account_id'] in nicks:
+                    actlist[i]['nick'] = nicks[actlist[i]['account_id']]
                 accounts[actlist[i]['account_id']] = actlist[i]
             start = time()
             txns = plaid.get_transactions(single, merchants)
@@ -211,7 +214,10 @@ def main(wf):
                 qnotify('Plaid', 'Account Filter Failed')
             return 0  # 0 means script exited cleanly
         if args.nick:
+            nicks = get_secure_value(wf, 'nicks', {})
             log.debug("adding nickname to "+args.acctid)
+            nicks[args.acctid] = args.nick
+            set_secure_value(wf, 'nicks', nicks)
             accounts[args.acctid]['nick'] = args.nick
             set_secure_value(wf, 'accounts', accounts)
             name = accounts[args.acctid]['name']
