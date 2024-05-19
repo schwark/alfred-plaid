@@ -261,7 +261,7 @@ def extract_filter(query, token, type):
     extract = re.findall(fr"{token}\:([^\s]+) ",query)
     if extract:
         result = extract[0]
-        query = query.replace(f"{token}:{result}",'').replace(r'\s+',' ').strip()
+        query = query.replace(f"{token}:{result}",'').replace(r'\s+',' ')
         if('date' == type):
             result = parse(result)
         elif('number' == type):

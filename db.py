@@ -137,7 +137,7 @@ class TxnDB:
         return date_from, date_to
     
     def get_results(self, query):
-        self.debug(f"{query}")
+        self.debug(f"DB query is: {query}")
         query, date_from = extract_filter(query, 'dtf', 'date')
         query, date_to = extract_filter(query, 'dtt', 'date')
         query, amt_from = extract_filter(query, 'amtf', 'number')
@@ -148,7 +148,8 @@ class TxnDB:
         query, dt = extract_filter(query, 'dt', 'text')
         query, cat = extract_filter(query, 'cat', 'text')
         query, txn = extract_filter(query, 'txn', 'text')
-        self.debug(f"{dt}")
+        query = query.strip()
+        self.debug(f"txn is {txn} and cat is {cat}")
         if dt:
             dfro, dto = self.parse_dt(dt)
             date_from = dfro if dfro and not date_from else date_from
