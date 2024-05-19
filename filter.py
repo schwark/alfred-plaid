@@ -4,7 +4,7 @@ import sys
 import argparse
 from workflow.workflow import MATCH_ATOM, MATCH_STARTSWITH, MATCH_SUBSTRING, MATCH_ALL, MATCH_INITIALS, MATCH_CAPITALS, MATCH_INITIALS_STARTSWITH, MATCH_INITIALS_CONTAIN
 from workflow import Workflow, ICON_NOTE, ICON_BURN, PasswordNotFound
-from common import get_stored_data, get_environment, get_protocol, get_secure_value, set_secure_value, get_current_user, ALL_ENV, ALL_USER, get_db_file, get_category_icon, get_category, extract_filter, shellquote, get_merchant_icon, get_bank_icon, get_category_icon, ICONS_DEFAULT
+from common import get_stored_data, get_environment, get_protocol, get_secure_value, set_secure_value, get_current_user, ALL_ENV, ALL_USER, get_db_file, get_category_icon, get_category, extract_filter, get_merchant_icon, get_bank_icon, get_category_icon, ICONS_DEFAULT
 from db import TxnDB
 from dateutil.parser import parse 
 from datetime import timedelta, datetime
@@ -574,9 +574,9 @@ def main(wf):
             term = found[0] if found else ''
             if re.findall(fr'{opt}{suffix}[^\s]*\s*$', query):
                 matches = wf.filter(term, opts, config_options[opt]['filter_func'] if 'filter_func' in config_options[opt] else (lambda x: x if is_array else config_options[opt]['options'][x]))
-                query = re.sub(fr'{opt}{suffix}[^\s]*\s*$','',query)
+                prequery = re.sub(fr'{opt}{suffix}[^\s]*\s*$','',query)
                 if 'special_items_func' in config_options[opt]:
-                    config_options[opt]['special_items_func'](wf, query, opts)
+                    config_options[opt]['special_items_func'](wf, prequery, opts)
                 for item in matches:
                     name = item if is_array else config_options[opt]['options'][item]
                     id = config_options[opt]['id'](item) if 'id' in config_options[opt] else item
@@ -584,13 +584,13 @@ def main(wf):
                     icon = config_options[opt]['icon'](name) if 'icon' in config_options[opt] else f"icons/ui/{name.lower().replace(' ','-')}.png"
                     valid = config_options[opt]['valid']
                     if type(valid) is not bool:
-                        valid = valid(query, item)
+                        valid = valid(prequery, item)
                     suffix = suffix.replace("\\",'')
                     wf.add_item(
                             title=config_options[opt]['title'](name),
-                            subtitle=config_options[opt]['subtitle'](name, query),
-                            autocomplete=f"{query}{opt}{suffix}{id} ",
-                            arg=config_options[opt]['arg'](item, query) if 'arg' in config_options[opt] else '',
+                            subtitle=config_options[opt]['subtitle'](name, prequery),
+                            autocomplete=f"{prequery}{opt}{suffix}{id} ",
+                            arg=config_options[opt]['arg'](item, prequery) if 'arg' in config_options[opt] else '',
                             valid=valid,
                             icon=icon
                     )
@@ -601,79 +601,63 @@ def main(wf):
                         config_options[opt]['set']['holder'][config_options[opt]['set']['field']] = term
     
     
-        if re.match(r'dt\:[^\s]*$', query):
-            found = re.compile('dt\:([^\s]+)').search(query)
-            term = found.group(1) if found else ''
-            matches = wf.filter(term, timeframes)
-            query = re.sub(r'dt\:[^\s]*$','',query)
-            for period in matches:
-                length = period.split()[1]
+        db = TxnDB(get_db_file(wf), wf.logger)
+        acct_filter = get_secure_value(wf, 'acct_filter', [])
+        if acct_filter: query = f"{query} act:{','.join(acct_filter)}"
+        txns = db.get_results(query)
+        if not txns:
+            if items and accounts:
                 wf.add_item(
-                        title=period,
-                        subtitle=f"Filter over {period.lower()}",
-                        autocomplete=f"{query}dt:{period.lower().replace(' ','-')} ",
+                        title="No matching transactions found...",
+                        subtitle="Please try another search term",
                         valid=False,
-                        icon=f"icons/ui/{length}.png"
+                        icon="icons/ui/empty.png"
                 )
         else:
-            log.debug(f"db query is {query}")
-            db = TxnDB(get_db_file(wf), wf.logger)
-            acct_filter = get_secure_value(wf, 'acct_filter', [])
-            if acct_filter: query = f"{query} act:{','.join(acct_filter)}"
-            txns = db.get_results(query)
-            if not txns:
-                if items and accounts:
-                    wf.add_item(
-                            title="No matching transactions found...",
-                            subtitle="Please try another search term",
-                            valid=False,
-                            icon="icons/ui/empty.png"
-                    )
-            else:
-                if 'cht:' in query:
-                    wf.add_item(
-                        title="Chart the transactions",
-                        subtitle=f"Highlight and tap SHIFT key for {chart_types[chart_options['ct']]} chart aggregated by {time_aggregates[chart_options['ta']]} and {merchant_aggregates[chart_options['ma']]}",
-                        valid=False,
-                        quicklookurl=get_chart_url(wf,txns),
-                        icon='icons/ui/chart.png'
-                    )
-                txn_list = txns #[:30] if len(txns) > 30 else txns                
-                query, cat_id = extract_filter(query, 'cat', 'text')
-                query, txn_id = extract_filter(query, 'txn', 'text')
-                custom_categories = get_stored_data(wf, 'custom_categorization', {})
-                for txn in txn_list:
-                    merchant_id = txn['merchant_id']
-                    acct = accounts[txn['account_id']]
-                    post = format_post_date(txn['post'])
-                    acct_name = acct['nick'] if 'nick' in acct else acct['name']
+            if 'cht:' in query:
+                wf.add_item(
+                    title="Chart the transactions",
+                    subtitle=f"Highlight and tap SHIFT key for {chart_types[chart_options['ct']]} chart aggregated by {time_aggregates[chart_options['ta']]} and {merchant_aggregates[chart_options['ma']]}",
+                    valid=False,
+                    quicklookurl=get_chart_url(wf,txns),
+                    icon='icons/ui/chart.png'
+                )
+            txn_list = txns #[:30] if len(txns) > 30 else txns                
+            query, cat_id = extract_filter(query, 'cat', 'text')
+            query, txn_id = extract_filter(query, 'txn', 'text')
+            custom_categories = get_stored_data(wf, 'custom_categorization', {})
+            for txn in txn_list:
+                merchant_id = txn['merchant_id']
+                acct = accounts[txn['account_id']]
+                post = format_post_date(txn['post'])
+                acct_name = acct['nick'] if 'nick' in acct else acct['name']
 
-                    if not cat_id or not txn_id:
-                        category_id = get_category(wf, txn, custom_categories)
-                        category = ' > '.join(categories[category_id]['list'])
-                        subtitle = f"{acct_name} | {category}     {txn['txntext']}"
-                    else:
-                        category = ' > '.join(categories[int(cat_id)]['list'])
-                        subtitle = f"Change category to {category}"
-                    merchant = txn['merchant'] if txn['merchant'] else ''
-                    txntext = txn['txntext']
-                    title = merchant if merchant else txntext
-                    #log.debug(f"{merchant_id} | {txn['txntext']} | {merchant}")
-                    title = title.ljust(50)
-                    arg = f' --merchant_id {merchant_id}' if cat_id and merchant_id else ''
-                    if not arg:
-                        arg = f" --merchant {quote(merchant)}" if cat_id and (not merchant_id  and merchant) else ''
-                    if not arg:
-                        arg = f" --txntext {quote(txntext)}" if cat_id and (not merchant_id  and txntext) else ''
-                    arg = arg + f' --category_id {cat_id}' if cat_id else ''
-                    wf.add_item(
-                            title=f"{post}    {title}    ${txn['amount']:.2f}",
-                            subtitle=subtitle,
-                            autocomplete=f"txn:{txn['transaction_id']} ",
-                            arg=arg,
-                            valid=('--merchant' in arg or '--txntext' in arg) and '--category_id' in arg,
-                            icon=get_txn_icon(wf, txn, accounts, banks, merchants, categories, icons)
-                    )
+                if not cat_id or not txn_id:
+                    category_id = get_category(wf, txn, custom_categories)
+                    category = ' > '.join(categories[category_id]['list'])
+                    subtitle = f"{acct_name} | {category}     {txn['txntext']}"
+                else:
+                    category = ' > '.join(categories[int(cat_id)]['list'])
+                    subtitle = f"Change category to {category}"
+                merchant = txn['merchant'] if txn['merchant'] else ''
+                txntext = txn['txntext']
+                title = merchant if merchant else txntext
+                #log.debug(f"{merchant_id} | {txn['txntext']} | {merchant}")
+                title = title.ljust(50)
+                arg = f' --merchant_id {merchant_id}' if cat_id and merchant_id else ''
+                if not arg:
+                    arg = f" --merchant {quote(merchant)}" if cat_id and (not merchant_id  and merchant) else ''
+                if not arg:
+                    arg = f" --txntext {quote(txntext)}" if cat_id and (not merchant_id  and txntext) else ''
+                arg = arg + f' --category_id {cat_id}' if cat_id else ''
+                wf.add_item(
+                        title=f"{post}    {title}    ${txn['amount']:.2f}",
+                        subtitle=subtitle,
+                        autocomplete=f"txn:{txn['transaction_id']} ",
+                        arg=arg,
+                        valid=('--merchant' in arg or '--txntext' in arg) and '--category_id' in arg,
+                        icon=get_txn_icon(wf, txn, accounts, banks, merchants, categories, icons)
+                )
 
         # Send the results to Alfred as XML
         wf.send_feedback()

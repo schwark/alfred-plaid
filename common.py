@@ -7,6 +7,8 @@ import os.path
 from os import listdir
 from os.path import isfile, join, splitext
 import base64
+from dateutil.parser import parse 
+
 
 SERVER_HOST='localhost'
 SERVER_PORT=8383
@@ -267,6 +269,3 @@ def extract_filter(query, token, type):
         elif('text' == type):
             pass
     return query,result
-
-def shellquote(s):
-    return "'" + s.replace("'", "\\'") + "'"
