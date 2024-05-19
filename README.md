@@ -11,6 +11,8 @@ chmod +x workflow-build
 ```
 * You will need a client ID and secret from the Plaid API portal. Sign up for a free developer account at Plaid, and ask for access to the development environment. The keys to enter into this workflow are the client ID and secret for the Development environment. It cannot be Sandbox environment credentials. This is free to sign up and use forever (according to Plaid)
 
+*NOTE*: All these options should show up with a dropdown option to autocomplete the option if you start typing some of what you are looking to do in english
+
 ## Client ID
 
 ```
