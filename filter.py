@@ -442,7 +442,7 @@ def main(wf):
                 'name': 'accounts',
                 'special_items_func': add_all_accounts,
                 'title': lambda x: f"{x['nick'] if 'nick' in x else x['name']}",
-                'subtitle': lambda x,y: f"{('Remove' if x['account_id'] in acct_filter else 'Add')+' this account to filter' if 'filter' in y else ('Set account nickname to '+extract_nick(y) if 'nick' in y else get_acct_subtitle(x))}",
+                'subtitle': lambda x,y: ('Remove' if x['account_id'] in acct_filter else 'Add')+' this account to filter' if 'filter' in y else ('Set account nickname to '+extract_nick(y) if 'nick' in y else f"{banks[x['institution_id']]['name']} {get_acct_subtitle(x)}"),
                 'icon': lambda x: f"{banks[x['institution_id']]['icon']}",
                 'suffix': '\:',
                 'arg': lambda x, y: f"{'--filter ' if 'filter ' in y else ''}{'--nick '+quote(extract_nick(y)) if 'nick ' in y else ''} --acctid {x}",
