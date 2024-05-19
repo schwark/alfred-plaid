@@ -154,10 +154,13 @@ class TxnDB:
             date_from = dfro if dfro and not date_from else date_from
             date_to = dto if dto and not date_to else date_to
         if cat:
-            pat = re.compile(r'([0-9]*)([1-9])(0+)$')
-            groups = pat.match(str(cat))
-            cat = int(cat)
-            max_cat = int(groups[1]+str(int(groups[2])+1)+groups[3]) if groups else cat+1
+            if re.match(r'^\d+$', cat):
+                pat = re.compile(r'([0-9]*)([1-9])(0+)$')
+                groups = pat.match(str(cat))
+                cat = int(cat)
+                max_cat = int(groups[1]+str(int(groups[2])+1)+groups[3]) if groups else cat+1
+            else:
+                cat = None
         else:
             max_cat = 0
         sort = sort if sort else 'post'

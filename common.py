@@ -258,7 +258,7 @@ def set_category(wf, id, category_id):
 
 def extract_filter(query, token, type):
     result = None
-    extract = re.findall(fr"{token}\:([^\s]+)",query)
+    extract = re.findall(fr"{token}\:([^\s]+) ",query)
     if extract:
         result = extract[0]
         query = query.replace(f"{token}:{result}",'').replace(r'\s+',' ').strip()
