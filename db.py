@@ -110,10 +110,10 @@ class TxnDB:
                     date_from = now.replace(day=1,hour=0,minute=0,second=0)
                 elif 'quarter' in dt[1]:
                     currQuarter = (now.month - 1) / 3 + 1
-                    date_from = datetime(now.year, 3 * currQuarter - 2, 1)
+                    date_from = datetime(now.year, int(3 * currQuarter - 2), 1)
                 elif 'half' in dt[1]:
                     currQuarter = (now.month - 1) / 3 + 1
-                    date_from = datetime(now.year, 3 * currQuarter - 2, 1) - relativedelta(months=3)
+                    date_from = datetime(now.year, int(3 * currQuarter - 2), 1) - relativedelta(months=3)
                 elif 'year' in dt[1]:    
                     date_from = now.replace(day=1,month=1,hour=0,minute=0,second=0)
             elif 'last' in dt[0]:
@@ -125,11 +125,11 @@ class TxnDB:
                     date_to = date_from + relativedelta(months=1,days=-1)
                 elif 'quarter' in dt[1]:
                     currQuarter = (now.month - 1) / 3 + 1
-                    date_from = datetime(now.year, 3 * currQuarter - 2, 1) - relativedelta(months=3)
+                    date_from = datetime(now.year, int(3 * currQuarter - 2), 1) - relativedelta(months=3)
                     date_to = date_from + relativedelta(months=3, days=-1)
                 elif 'half' in dt[1]:
                     currQuarter = (now.month - 1) / 3 + 1
-                    date_from = datetime(now.year, 3 * currQuarter - 2, 1) - relativedelta(months=6)
+                    date_from = datetime(now.year, int(3 * currQuarter - 2), 1) - relativedelta(months=6)
                     date_to = date_from + relativedelta(months=6, days=-1)
                 elif 'year' in dt[1]:    
                     date_from = now.replace(day=1,month=1,hour=0,minute=0,second=0) - relativedelta(years=1)
