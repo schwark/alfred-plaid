@@ -147,11 +147,11 @@ def add_new_link(wf, query, opts):
     )
     
 def add_all_accounts(wf, query, opts):
-    if opts and 'filter ' in query:
+    if opts and ('filter ' in query or 'refresh ' in query):
         wf.add_item(
                 title="All Accounts",
-                subtitle="Remove account filter - set to all accounts",
-                arg=' --filter --acctid all',
+                subtitle="Remove account filter - set to all accounts" if 'filter ' in query else 'Refresh all accounts',
+                arg=f" {'--filter' if 'filter ' in query else '--refresh'} --acctid all",
                 valid=True,
                 icon="icons/ui/all.png"
         )
@@ -227,6 +227,14 @@ def main(wf):
             'args': ' --update',
             'icon': "icons/ui/sync.png",
             'valid': True
+        },
+        'refresh': {
+            'title': 'Force a refresh of data from the bank',
+            'subtitle': 'Force and update of transactions. update will need to be called a few mins later',
+            'autocomplete': 'refresh ',
+            'args': ' --refresh',
+            'icon': "icons/ui/cloud.png",
+            'valid': False
         },
         'upcat': {
             'title': 'Update Categories',
@@ -458,13 +466,13 @@ def main(wf):
                 'name': 'accounts',
                 'special_items_func': add_all_accounts,
                 'title': lambda x: f"{x['nick'] if 'nick' in x else x['name']}",
-                'subtitle': lambda x,y: ('Remove' if x['account_id'] in acct_filter else 'Add')+' this account to filter' if 'filter' in y else ('Set account nickname to '+extract_nick(y) if 'nick' in y else f"{banks[x['institution_id']]['name']} {get_acct_subtitle(x)}"),
+                'subtitle': lambda x,y: ('Remove' if x['account_id'] in acct_filter else 'Add')+' this account to filter' if 'filter' in y else ('Set account nickname to '+extract_nick(y) if 'nick' in y else ('Refresh this account' if 'refresh' in y else f"{banks[x['institution_id']]['name']} {get_acct_subtitle(x)}")),
                 'icon': lambda x: f"{banks[x['institution_id']]['icon']}",
                 'suffix': '\:',
-                'arg': lambda x, y: f"{'--filter ' if 'filter ' in y else ''}{'--nick '+quote(extract_nick(y)) if 'nick ' in y else ''} --acctid {x}",
+                'arg': lambda x, y: f"{'--refresh ' if 'refresh ' in y else ''}{'--filter ' if 'filter ' in y else ''}{'--nick '+quote(extract_nick(y)) if 'nick ' in y else ''} --acctid {x}",
                 'options': accounts,
                 'filter_func': lambda x: f"{banks[accounts[x]['institution_id']]['name']} {accounts[x]['name']} {accounts[x]['subtype']} {accounts[x]['nick'] if 'nick' in accounts[x] else ''} {x}",
-                'valid': lambda x, y: True if ('nick ' in x and len(words) > 2) or 'filter ' in x else False        
+                'valid': lambda x, y: True if ('nick ' in x and len(words) > 2) or ('filter ' in x or 'refresh ' in x) else False        
         },
         'link': {
                 'name': 'items',

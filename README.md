@@ -56,6 +56,13 @@ pd act:
 ```
 This gives the list of accounts and balances, and selecting any of them also filters all further queries to that account. Mulitple accounts can be filtered on, by selecting more than one consecutively. Selecting "All Accounts" will reset account filtering
 
+## Account Refresh
+
+```
+pd refresh act:<acct-name>
+```
+This allows for forcing a refresh of the data from the bank to Plaid. You can refresh all accounts as well. This only refreshes from the bank to plaid. To update the local cache of transactions, this needs to be followed by a `update` command a few mins later when the refresh may be complete.
+
 ## Account Filtering
 
 ```

@@ -93,6 +93,11 @@ class Plaid:
         if result and 'institution' in result:
             result = result['institution']
         return result
+    
+    def force_refresh(self, access_token):
+        data = {"access_token": access_token}
+        result = self.api(path="/transactions/refresh", data=data)
+        return result
 
     def exchange_public_token(self, public_token):
         data = {"public_token": public_token}
