@@ -59,9 +59,9 @@ This gives the list of accounts and balances, and selecting any of them also fil
 ## Account Refresh
 
 ```
-pd refresh act:<acct-name>
+pd refresh <all | item>
 ```
-This allows for forcing a refresh of the data from the bank to Plaid. You can refresh all accounts as well. This only refreshes from the bank to plaid. To update the local cache of transactions, this needs to be followed by a `update` command a few mins later when the refresh may be complete.
+This allows for forcing a refresh of the data from the bank to Plaid. You can refresh all items as well. This only refreshes from the bank to plaid. To update the local cache of transactions, this needs to be followed by a `update` command a few mins later when the refresh may be complete.
 
 ## Account Filtering
 
