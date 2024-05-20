@@ -262,7 +262,7 @@ def main(wf):
     if args.refresh:
         items = get_secure_value(wf, 'items', {})
         banks = get_stored_data(wf, 'banks', {})
-        rlist = items if 'all' == args.refresh else [items[args.refresh]]
+        rlist = items.values() if 'all' == args.refresh else [items[args.refresh]]
         name = 'All' if 'all' == args.refresh else banks[items[args.refresh]['institution_id']]['name']
         log.debug("forcing refresh of transactions..")
         for item in rlist:
