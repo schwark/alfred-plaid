@@ -12,7 +12,7 @@ from dateutil.parser import parse
 
 SERVER_HOST='localhost'
 SERVER_PORT=8383
-SERVER_PROTOCOL='http'
+SERVER_PROTOCOL='https'
 DEFAULT_ENV = 'sandbox'
 SECURE_STORE = 'plaid_secure'
 ALL_ENV = 'global'

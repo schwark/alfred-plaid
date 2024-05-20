@@ -336,11 +336,13 @@ def main(wf):
         if public_token:
             result = plaid.exchange_public_token(public_token=public_token)
             if 'access_token' in result:
+                banks = get_stored_data(wf, 'banks', {})
                 item['access_token'] = result['access_token']
                 item['item_id'] = result['item_id']
                 add_item(wf, item)
+                name = banks[item['institution_id']]['name']
                 update_items(wf, plaid)
-                qnotify('Plaid', 'Saved Item' if 'access_token' in result else 'Item Save Failed')
+                qnotify('Plaid', f'Saved {name} Item' if 'access_token' in result else f'{name} Item Save Failed')
                 result = update_transactions(wf, plaid)
             return 0  # 0 means script exited cleanly
         
