@@ -349,11 +349,27 @@ def main(wf):
             'valid': False
         },
         'dt': {
-            'title': 'Add a Date Filter',
-            'subtitle': 'Filter results to certain dates',
+            'title': 'Add a Time Period Filter',
+            'subtitle': 'Filter results to certain time periods',
             'autocomplete': 'dt:',
             'args': ' --dt '+(words[1] if len(words)>1 else ''),
-            'icon': "icons/ui/calendar.png",
+            'icon': "icons/ui/timeperiod.png",
+            'valid': False
+        },
+        'dtf': {
+            'title': 'Add a Date From Filter',
+            'subtitle': 'Filter results to only after this date',
+            'autocomplete': 'dtf:',
+            'args': ' --dtf '+(words[1] if len(words)>1 else ''),
+            'icon': "icons/ui/dateafter.png",
+            'valid': False
+        },
+        'dtt': {
+            'title': 'Add a Date To Filter',
+            'subtitle': 'Filter results to only before this date',
+            'autocomplete': 'dtt:',
+            'args': ' --dtt '+(words[1] if len(words)>1 else ''),
+            'icon': "icons/ui/datebefore.png",
             'valid': False
         },
         'amtt': {
