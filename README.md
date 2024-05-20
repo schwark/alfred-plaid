@@ -121,7 +121,7 @@ This clears all transaction data and merchant and category data. It retains the 
 ```
 pd reinit
 ```
-This should only be needed if you ever want to start again for whatever reason - removes all API keys, devices, scenes, etc.
+This should only be needed if you ever want to start again for whatever reason - removes all client id, secret, and most importantly already linked items. Once the items are nuked, there is no way to get those linked items back. You will need to add new items to your Plaid account and it may have billing implications as there will be multiple items on Plaid side for the same bank on your side. Use with caution and only when REALLY necessary. `pd clear` is often the better option.
 
 ## Update
 
