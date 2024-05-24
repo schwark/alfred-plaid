@@ -107,6 +107,11 @@ class Plaid:
     def get_item(self, access_token):
         data = {"access_token": access_token}
         result = self.api(path="/item/get", data=data)
+        return result['item'] if 'item' in result else None
+    
+    def del_item(self, access_token):
+        data = {"access_token": access_token}
+        result = self.api(path="/item/remove", data=data)
         return result
     
     def get_accounts(self, item, banks):

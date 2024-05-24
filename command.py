@@ -22,9 +22,9 @@ def update_items(wf, plaid):
     for item_id in items:
         item = items[item_id]
         result = plaid.get_item(item['access_token'])
-        item['institution_id'] = result['item']['institution_id']
-        item['error'] = result['item']['error']
-        item['consent_expiration_time'] = result['item']['consent_expiration_time']
+        item['institution_id'] = result['institution_id']
+        item['error'] = result['error']
+        item['consent_expiration_time'] = result['consent_expiration_time']
         items[item['item_id']] = item
         if item['institution_id'] not in banks:
             bank = plaid.get_institution_by_id(item['institution_id'])
@@ -40,6 +40,26 @@ def add_item(wf, item):
     items = get_secure_value(wf, 'items', {})
     items[item['item_id']] = item
     set_secure_value(wf, 'items', items)
+    
+def del_item(wf, item_id, plaid):
+    items = get_secure_value(wf, 'items', {})
+    if item_id not in items: return None
+
+    banks = get_stored_data(wf, 'banks', {})
+    item = items[item_id]
+    name = banks[item['institution_id']]['name']
+    db = TxnDB(get_db_file(wf), wf.logger)
+    accounts = get_secure_value(wf, 'accounts', {})
+    ids = list(accounts.keys())
+    for account_id in ids:
+        if item_id == accounts[account_id]['item_id']: 
+            db.del_account_txns(account_id)
+            del accounts[account_id]
+    result = plaid.del_item(item['access_token'])
+    del items[item_id]
+    set_secure_value(wf, 'accounts', accounts)
+    set_secure_value(wf, 'items', items)
+    return name
     
 def update_categories(wf, plaid):
     log.debug('updating categories...')
@@ -149,6 +169,7 @@ def main(wf):
     parser.add_argument('--refresh', dest='refresh', nargs='?', default=False)
     parser.add_argument('--upcat', dest='upcat', action='store_true', default=False)
     parser.add_argument('--link', dest='link', nargs='?', default=None)
+    parser.add_argument('--delete', dest='delete', nargs='?', default=None)
     parser.add_argument('--kill', dest='kill', action='store_true', default=False)
     # reinitialize 
     parser.add_argument('--reinit', dest='reinit', action='store_true', default=False)
@@ -320,7 +341,15 @@ def main(wf):
     
     if args.kill:
         stop_server(wf)
-    
+        
+    if args.delete:
+        try:
+            name = del_item(wf, args.delete, plaid)
+            qnotify('Plaid', f'Item {name} deleted')
+        except Exception as e:
+            log.debug(e)
+            qnotify('Plaid', e)
+        
     if args.link:
         items = get_secure_value(wf, 'items', {})
         item = items[args.link] if args.link in items else {}
@@ -338,6 +367,7 @@ def main(wf):
             result = plaid.exchange_public_token(public_token=public_token)
             if 'access_token' in result:
                 banks = get_stored_data(wf, 'banks', {})
+                item = plaid.get_item(result['access_token'])
                 item['access_token'] = result['access_token']
                 item['item_id'] = result['item_id']
                 add_item(wf, item)

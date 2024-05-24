@@ -222,6 +222,14 @@ def main(wf):
             'icon': "icons/ui/link.png",
             'valid': False
         },
+        'del': {
+            'title': 'Delete item and accounts',
+            'subtitle': 'Delete the item and all related accounts and transactions',
+            'autocomplete': 'del ',
+            'args': ' --delete',
+            'icon': "icons/ui/delete.png",
+            'valid': False
+        },
         'kill': {
             'title': 'Kill the link server',
             'subtitle': 'Clean up link server errors',
@@ -492,6 +500,17 @@ def main(wf):
                 'icon': lambda x: banks[x['institution_id']]['icon'] if not x['error'] else 'icons/ui/broken.png',
                 'suffix': ' ',
                 'arg': lambda x, y: f"--link {x}",
+                'options': items,
+                'filter_func': lambda x: banks[items[x]['institution_id']]['name'],
+                'valid': True            
+        },
+        'del': {
+                'name': 'delete',
+                'title': lambda x: banks[x['institution_id']]['name'],
+                'subtitle': lambda x,y: f"{'*ERROR* ' if x['error'] else ''} Remove all accounts and link to {banks[x['institution_id']]['name']}",
+                'icon': lambda x: banks[x['institution_id']]['icon'] if 'error' not in x or not x['error'] else 'icons/ui/broken.png',
+                'suffix': ' ',
+                'arg': lambda x, y: f"--delete {x}",
                 'options': items,
                 'filter_func': lambda x: banks[items[x]['institution_id']]['name'],
                 'valid': True            

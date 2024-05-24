@@ -48,8 +48,16 @@ class TxnDB:
                             WHERE {column}=:column_value"""
             self.logger.debug(f"{sql}: {column} {column_value}")
             cur.execute(sql, params,)
-
             
+    def del_account_txns(self, account_id):
+        params = {'account_id': account_id}
+        con = sqlite3.connect(self.file)
+        with con:
+            cur = con.cursor()
+            sql = f"""DELETE from transactions WHERE account_id=:account_id"""
+            self.logger.debug(f"{sql}: {account_id}")
+            cur.execute(sql, params,)
+
     def save_txn(self, txn, wf):
         account_id = txn['account_id']
         auth = datetime.strptime(txn['authorized_date'], '%Y-%m-%d') if 'authorized_date' in txn and txn['authorized_date'] else None
