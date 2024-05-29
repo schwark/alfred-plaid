@@ -38,6 +38,13 @@ def log(text):
     sys.stderr.write(f"{text}\n")
 
 class MyServer(SimpleHTTPRequestHandler):
+    def end_headers(self):
+        self.send_my_headers()
+        SimpleHTTPRequestHandler.end_headers(self)
+
+    def send_my_headers(self):
+        self.send_header("Access-Control-Allow-Origin", "https://cdn.plaid.com")
+    
     def do_GET(self):
         parts = self.path.split('?')
         path = parts[0]
